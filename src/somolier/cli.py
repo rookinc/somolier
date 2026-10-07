@@ -20,7 +20,7 @@ def main() -> None:
         f"valid={list(wr.valid_file_types)} flags={list(wr.flags)}"
     )
     if not wr.accepted:
-        print("[SPIT] rejected at WIFF; no B32KID issued")
+        print("[SPIT] nose rejected input; no B32KID issued")
         raise SystemExit(1)
 
     print("[2/4] SWIRL")
