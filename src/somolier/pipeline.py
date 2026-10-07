@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from hashlib import sha256
 
 from .backend import PacketBackend
 from .backends.b32k import B32KBackend
-from .model import QuarantineReceipt, TasteReceipt, WiffReceipt
+from .model import B32KID, QuarantineReceipt, TasteReceipt, WiffReceipt
 from .storage import StoragePort
 
 
@@ -82,18 +82,32 @@ def quarantine(
 class Somolier:
     backend: PacketBackend = B32KBackend()
 
-    def taste(self, payload: bytes) -> TasteReceipt:
-        packet = self.backend.encode(payload)
+    def taste(
+        self,
+        payload: bytes,
+        *,
+        b32kid: B32KID | None = None,
+    ) -> TasteReceipt:
+        packet = self.backend.encode(payload, b32kid=b32kid)
         if not self.backend.validate(packet):
             raise ValueError("packet backend rejected its own encoded packet")
+        history = {"source_bytes_preserved": True}
+        if b32kid is not None:
+            history["b32kid"] = str(b32kid)
         return TasteReceipt(
             backend=self.backend.name,
             canonical_id=self.backend.canonical_id(packet),
             packet=packet,
             source_size=len(payload),
-            history={"source_bytes_preserved": True},
+            history=history,
             flags=(),
         )
+
+    def taste_quarantine(self, receipt: QuarantineReceipt, storage: StoragePort) -> TasteReceipt:
+        """Taste the host-sealed quarantine artifact using its event B32KID."""
+
+        payload = storage.read(receipt.allocation, "sealed.bin")
+        return self.taste(payload, b32kid=receipt.b32kid)
 
     def render(self, receipt: TasteReceipt) -> bytes:
         if receipt.backend != self.backend.name:
