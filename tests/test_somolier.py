@@ -2,6 +2,7 @@ import pytest
 
 from somolier import (
     B32KBackend,
+    DependencyState,
     Disposition,
     RegisteredDecider,
     Somolier,
@@ -38,7 +39,7 @@ def test_unregistered_decider_hates_everything():
 def test_registered_decider_requires_all_gates():
     receipt = Somolier().taste(b"wine")
     decider = RegisteredDecider(
-        authority="test-hat",
+        authority="test-authority",
         required_gates=("integrity", "policy"),
     )
     assert decider.decide(
@@ -49,3 +50,34 @@ def test_registered_decider_requires_all_gates():
         receipt,
         gate_results={"integrity": True, "policy": True},
     ).disposition is Disposition.SWALLOW
+
+
+def test_registered_decider_fails_closed_when_required_port_disconnected():
+    receipt = Somolier().taste(b"wine")
+    decider = RegisteredDecider(
+        authority="test-authority",
+        required_gates=("integrity",),
+        required_ports=("storage", "dictionary"),
+    )
+    decision = decider.decide(
+        receipt,
+        gate_results={"integrity": True},
+        port_results={
+            "storage": DependencyState.READY,
+            "dictionary": DependencyState.DISCONNECTED,
+        },
+    )
+    assert decision.disposition is Disposition.SPIT
+    assert decision.unavailable_ports == ("dictionary",)
+
+
+def test_missing_required_port_is_disconnected_and_spits():
+    receipt = Somolier().taste(b"wine")
+    decider = RegisteredDecider(
+        authority="test-authority",
+        required_gates=(),
+        required_ports=("storage",),
+    )
+    decision = decider.decide(receipt, gate_results={}, port_results={})
+    assert decision.disposition is Disposition.SPIT
+    assert decision.unavailable_ports == ("storage",)
