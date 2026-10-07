@@ -1,34 +1,31 @@
-# B32K Packet Identity
+# B32K Identity Mapping for Somolier
 
-B32K requires every packet to carry a B32KID.
+This document replaces the prototype packet-ID policy.
 
-    B32KPacket = (B32KID, words)
+## Normative B32K identities
 
-## WIFF owns identity
+B32K defines distinct concepts:
 
-Every WIFF generates a valid deterministic B32KID before quarantine or host
-storage is consulted:
+- payload digest: BLAKE3-256(N(x));
+- handle: BLAKE3-256 over the B32K-HANDLE domain, version, lane, and payload digest;
+- HTTPQ packet_id: 128-bit UUIDv7 identifying an envelope;
+- O-1 receipt: ledger inclusion proof object.
 
-    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
+Somolier MUST preserve these meanings.
 
-The host does not mint or alter it. The host only chooses storage placement.
+## Somolier B32KID profile
 
-The identity then follows the object through the chain:
+B32KID is a Somolier profile extension. It is an object label derived from the normative B32K handle/genesis context.
 
-    bytes
-      -> WIFF(B32KID)
-      -> host quarantine placement
-      -> SWIRL
-      -> TASTE
-      -> B32KPacket(B32KID, words)
+It MUST NOT be implemented as b32kid:sha256:<bytes> and MUST NOT be described as a normative B32K field.
 
-A B32K backend still rejects any packet construction without a B32KID.
+The exact serialized label is versioned in the Somolier conformance profile and must preserve enough context to distinguish it from HTTPQ packet_id and raw payload digest.
 
-## Canonical content identity
+## Genesis semantics
 
-B32K currently also exposes canonical_id, the digest of the B32K word
-representation. B32KID and canonical_id are both deterministic, but serve
-different protocol roles:
+TASTE PASS establishes the subject genesis object/receipt and its B32KID.
 
-    B32KID       = identity minted at first contact by WIFF
-    canonical_id = identity of normalized B32K packet content
+Every caller receipt is itself an object and therefore has its own receipt_b32kid, even when the subject failed before earning a subject_b32kid.
+
+    receipt_b32kid  always present on valid receipt
+    subject_b32kid  present only when subject identity was earned
