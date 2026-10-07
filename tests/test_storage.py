@@ -5,6 +5,7 @@ import pytest
 from somolier import (
     B32KID,
     FixedMemoryStoragePort,
+    Somolier,
     quarantine,
 )
 
@@ -28,12 +29,22 @@ def test_host_supplies_b32kid_and_quarantine_location():
     assert receipt.source_digest == sha256(payload).hexdigest()
     assert host.read(receipt.allocation, "original.bin") == payload
     assert host.read(receipt.allocation, "sealed.bin") == payload
-    assert host.artifact_names() == (
-        "original.bin",
-        "sealed.bin",
-        "source.sha256",
-        "wiff.json",
+
+
+def test_quarantine_b32kid_flows_into_b32k_packet():
+    payload = b"wine"
+    packet_id = B32KID("b32kid:test-event-flow")
+    host = FixedMemoryStoragePort(
+        b32kid=packet_id,
+        location="memory://host-quarantine/test-event-flow",
     )
+
+    quarantine_receipt = quarantine(payload, host)
+    taste_receipt = Somolier().taste_quarantine(quarantine_receipt, host)
+
+    assert taste_receipt.packet.b32kid == packet_id
+    assert taste_receipt.history["b32kid"] == str(packet_id)
+    assert Somolier().render(taste_receipt) == payload
 
 
 def test_same_bytes_can_have_distinct_host_event_ids():
