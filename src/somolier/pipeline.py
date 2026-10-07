@@ -42,6 +42,16 @@ def _normalize_types(valid_file_types: Iterable[str]) -> tuple[str, ...]:
     return tuple(normalized)
 
 
+def _b32k_json(payload: Mapping[str, object]) -> bytes:
+    body = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return B32K_V1_MAGIC + body
+
+
 def wiff(
     payload: bytes,
     *,
@@ -50,12 +60,7 @@ def wiff(
     valid_file_types: Iterable[str] = DEFAULT_VALID_FILE_TYPES,
     file_headers: Mapping[str, bytes] = DEFAULT_FILE_HEADERS,
 ) -> WiffReceipt:
-    """The nose gate. WIFF does not issue IDs.
-
-    A recognized file type must also match its configured raw-byte header.
-    The stock distribution knows only .b32k with the B32KV001 header.
-    """
-
+    """The nose gate. WIFF does not issue IDs."""
     allowed = _normalize_types(valid_file_types)
     extension = Path(source_name).suffix.lower()
     flags = []
@@ -86,7 +91,6 @@ def wiff(
 
 def swirl(payload: bytes, wiff_receipt: WiffReceipt) -> SwirlReceipt:
     """Seal a WIFF-approved specimen and issue its B32KID."""
-
     if not wiff_receipt.accepted:
         raise ValueError("SWIRL requires a passing WIFF receipt")
     digest = sha256(payload).hexdigest()
@@ -105,8 +109,7 @@ def caller_receipt(
     taste_receipt: TasteReceipt | None = None,
     stream_receipt: QuarantineReceipt | None = None,
 ) -> CallerReceipt:
-    """Build the canonical response for the original caller."""
-
+    """Build the canonical logical receipt for the original caller."""
     if not wiff_receipt.accepted:
         return CallerReceipt(
             source_name=wiff_receipt.source_name,
@@ -136,6 +139,24 @@ def caller_receipt(
     )
 
 
+def encode_caller_receipt(receipt: CallerReceipt) -> bytes:
+    """Serialize a CallerReceipt as a canonical .b32k v1 file."""
+    return _b32k_json(
+        {
+            "kind": "somolier.caller_receipt",
+            "version": 1,
+            "source_name": receipt.source_name,
+            "stage": receipt.stage.value,
+            "disposition": receipt.disposition.value,
+            "reason": receipt.reason,
+            "b32kid": str(receipt.b32kid) if receipt.b32kid is not None else None,
+            "canonical_id": receipt.canonical_id,
+            "streamed_artifacts": list(receipt.streamed_artifacts),
+            "flags": list(receipt.flags),
+        }
+    )
+
+
 def stream_swallowed(
     swirl_receipt: SwirlReceipt,
     wiff_receipt: WiffReceipt,
@@ -143,10 +164,11 @@ def stream_swallowed(
     storage: StoragePort,
 ) -> QuarantineReceipt:
     """Persist only an admitted specimen."""
-
     if decision.disposition is not Disposition.SWALLOW:
         raise ValueError("STREAM requires SWALLOW")
     metadata = {
+        "kind": "somolier.stream_receipt",
+        "version": 1,
         "b32kid": str(swirl_receipt.b32kid),
         "source_digest": swirl_receipt.source_digest,
         "source_name": wiff_receipt.source_name,
@@ -165,14 +187,7 @@ def stream_swallowed(
 
     artifacts = (
         storage.stream(allocation, wiff_receipt.source_name, swirl_receipt.sealed),
-        storage.stream(
-            allocation,
-            "receipt.json",
-            (
-                json.dumps(metadata, sort_keys=True, separators=(",", ":"))
-                + "\n"
-            ).encode("utf-8"),
-        ),
+        storage.stream(allocation, "receipt.b32k", _b32k_json(metadata)),
     )
     return QuarantineReceipt(
         allocation=allocation,
