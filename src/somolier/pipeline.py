@@ -3,88 +3,136 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from hashlib import sha256
+from pathlib import Path
+from typing import Iterable
 
 from .backend import PacketBackend
 from .backends.b32k import B32KBackend
-from .model import B32KID, QuarantineReceipt, TasteReceipt, WiffReceipt
+from .model import (
+    B32KID,
+    DecisionReceipt,
+    Disposition,
+    QuarantineReceipt,
+    SwirlReceipt,
+    TasteReceipt,
+    WiffReceipt,
+)
 from .storage import StoragePort
 
 
-def _wiff_b32kid(payload: bytes) -> B32KID:
-    """Mint a deterministic B32KID from the exact incoming bytes."""
-    return B32KID("b32kid:sha256:" + sha256(payload).hexdigest())
+DEFAULT_VALID_FILE_TYPES = (".b32k",)
 
 
-def wiff(payload: bytes, *, surface_type: str = "application/octet-stream") -> WiffReceipt:
-    """Cheap pre-quarantine sniff. Every WIFF mints a valid B32KID."""
-    flags = () if payload else ("empty_payload",)
+def _normalize_types(valid_file_types: Iterable[str]) -> tuple[str, ...]:
+    normalized = []
+    for value in valid_file_types:
+        item = value.strip().lower()
+        if not item.startswith("."):
+            item = "." + item
+        if item not in normalized:
+            normalized.append(item)
+    if not normalized:
+        raise ValueError("WIFF requires at least one valid file type")
+    return tuple(normalized)
+
+
+def wiff(
+    payload: bytes,
+    *,
+    source_name: str,
+    surface_type: str = "application/octet-stream",
+    valid_file_types: Iterable[str] = DEFAULT_VALID_FILE_TYPES,
+) -> WiffReceipt:
+    """The nose/lips gate.
+
+    WIFF recognizes only explicitly configured file types. The stock Somolier
+    configuration ships with .b32k and nothing else. WIFF does not issue IDs.
+    """
+
+    allowed = _normalize_types(valid_file_types)
+    extension = Path(source_name).suffix.lower()
+    flags = []
+    if not payload:
+        flags.append("empty_payload")
+    if extension not in allowed:
+        flags.append("unsupported_file_type")
+    accepted = not flags
     return WiffReceipt(
-        b32kid=_wiff_b32kid(payload),
+        accepted=accepted,
+        source_name=source_name,
+        extension=extension,
         size_bytes=len(payload),
         surface_type=surface_type,
-        flags=flags,
+        valid_file_types=allowed,
+        flags=tuple(flags),
     )
 
 
-def swirl(payload: bytes) -> bytes:
-    """Quarantine boundary placeholder.
+def swirl(payload: bytes, wiff_receipt: WiffReceipt) -> SwirlReceipt:
+    """Seal a WIFF-approved specimen and issue its B32KID.
 
-    v0.1 returns an immutable byte copy. Production sealing belongs in a
-    cryptographic adapter; this function deliberately does not invent crypto.
+    Anything that did not pass WIFF never receives a B32KID.
     """
-    return bytes(payload)
+
+    if not wiff_receipt.accepted:
+        raise ValueError("SWIRL requires a passing WIFF receipt")
+    digest = sha256(payload).hexdigest()
+    return SwirlReceipt(
+        b32kid=B32KID("b32kid:sha256:" + digest),
+        sealed=bytes(payload),
+        source_digest=digest,
+    )
 
 
-def quarantine(
-    payload: bytes,
+def stream_swallowed(
+    swirl_receipt: SwirlReceipt,
+    wiff_receipt: WiffReceipt,
+    decision: DecisionReceipt,
     storage: StoragePort,
-    *,
-    surface_type: str = "application/octet-stream",
 ) -> QuarantineReceipt:
-    """WIFF identifies the object; the host chooses only quarantine placement."""
+    """Persist only an admitted specimen.
 
-    source_digest = sha256(payload).hexdigest()
-    wr = wiff(payload, surface_type=surface_type)
+    Default Somolier behavior is no host allocation and no STREAM on SPIT.
+    """
+
+    if decision.disposition is not Disposition.SWALLOW:
+        raise ValueError("STREAM requires SWALLOW")
     metadata = {
-        "b32kid": str(wr.b32kid),
-        "source_digest": source_digest,
-        "size_bytes": wr.size_bytes,
-        "surface_type": wr.surface_type,
-        "flags": list(wr.flags),
+        "b32kid": str(swirl_receipt.b32kid),
+        "source_digest": swirl_receipt.source_digest,
+        "source_name": wiff_receipt.source_name,
+        "extension": wiff_receipt.extension,
+        "size_bytes": wiff_receipt.size_bytes,
+        "surface_type": wiff_receipt.surface_type,
+        "flags": list(wiff_receipt.flags),
     }
     allocation = storage.allocate(
-        b32kid=wr.b32kid,
-        source_digest=source_digest,
+        b32kid=swirl_receipt.b32kid,
+        source_digest=swirl_receipt.source_digest,
         metadata=metadata,
     )
-    if allocation.b32kid != wr.b32kid:
-        raise ValueError("storage port changed the WIFF-minted B32KID")
+    if allocation.b32kid != swirl_receipt.b32kid:
+        raise ValueError("storage port changed the SWIRL-issued B32KID")
 
-    artifacts = []
-    artifacts.append(storage.stream(allocation, "original.bin", payload))
-    artifacts.append(
+    artifacts = (
         storage.stream(
             allocation,
-            "source.sha256",
-            (source_digest + "\n").encode("ascii"),
-        )
-    )
-    artifacts.append(
+            wiff_receipt.source_name,
+            swirl_receipt.sealed,
+        ),
         storage.stream(
             allocation,
-            "wiff.json",
+            "receipt.json",
             (
                 json.dumps(metadata, sort_keys=True, separators=(",", ":"))
                 + "\n"
             ).encode("utf-8"),
-        )
+        ),
     )
-    artifacts.append(storage.stream(allocation, "sealed.bin", swirl(payload)))
-
     return QuarantineReceipt(
         allocation=allocation,
-        source_digest=source_digest,
-        artifacts=tuple(artifacts),
+        source_digest=swirl_receipt.source_digest,
+        artifacts=artifacts,
     )
 
 
@@ -92,33 +140,21 @@ def quarantine(
 class Somolier:
     backend: PacketBackend = B32KBackend()
 
-    def taste(
-        self,
-        payload: bytes,
-        *,
-        b32kid: B32KID | None = None,
-    ) -> TasteReceipt:
-        packet_id = b32kid if b32kid is not None else wiff(payload).b32kid
-        packet = self.backend.encode(payload, b32kid=packet_id)
+    def taste(self, receipt: SwirlReceipt) -> TasteReceipt:
+        packet = self.backend.encode(receipt.sealed, b32kid=receipt.b32kid)
         if not self.backend.validate(packet):
             raise ValueError("packet backend rejected its own encoded packet")
-        history = {
-            "source_bytes_preserved": True,
-            "b32kid": str(packet_id),
-        }
         return TasteReceipt(
             backend=self.backend.name,
             canonical_id=self.backend.canonical_id(packet),
             packet=packet,
-            source_size=len(payload),
-            history=history,
+            source_size=len(receipt.sealed),
+            history={
+                "source_bytes_preserved": True,
+                "b32kid": str(receipt.b32kid),
+            },
             flags=(),
         )
-
-    def taste_quarantine(self, receipt: QuarantineReceipt, storage: StoragePort) -> TasteReceipt:
-        """Taste the sealed quarantine artifact under its WIFF-minted B32KID."""
-        payload = storage.read(receipt.allocation, "sealed.bin")
-        return self.taste(payload, b32kid=receipt.b32kid)
 
     def render(self, receipt: TasteReceipt) -> bytes:
         if receipt.backend != self.backend.name:
