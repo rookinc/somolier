@@ -32,7 +32,7 @@ to put an ingestion event.
 
 The host returns:
 
-    B32KID  = unique ingestion-event identity
+    B32KID   = unique ingestion-event identity
     location = opaque quarantine location/handle
 
 Somolier separately computes SHA-256 content identity:
@@ -43,14 +43,26 @@ Somolier separately computes SHA-256 content identity:
 The same content may therefore have the same SHA-256 and different B32KIDs on
 different ingestion events.
 
+## B32K packet law
+
+Every B32K packet MUST carry a B32KID.
+
+    B32KPacket = (B32KID, words)
+
+A B32K encoder refuses to create a packet without one. The B32KID follows the
+ingestion event from host quarantine into packetization.
+
+B32KID is event identity, not content identity. Therefore it is deliberately
+excluded from the B32K canonical content hash:
+
+    same bytes + different B32KID -> same canonical content ID
+
+This preserves the distinction between provenance and content.
+
 ## Native packet backend
 
 Somolier v0.1 ships with **B32K** configured as the default packet backend.
-
-    surface presentation -> Somolier -> B32K packet -> Decider
-
-The backend remains pluggable so downstream projects can replace B32K without
-changing the Somolier protocol.
+Other packet backends may define different identity requirements.
 
 ## King's Taster model
 
@@ -60,17 +72,14 @@ the King's Taster: nothing is consumed until it has earned SWALLOW.
 ## Test harness
 
 Somolier ships a policy-neutral test harness with deterministic receipt checks,
-B32K round-trip checks, evidence-preservation checks, fail-closed Decider
-tests, disconnected-port tests, and host-storage/B32KID tests.
+B32K round-trip checks, B32KID packet checks, evidence-preservation checks,
+fail-closed Decider tests, disconnected-port tests, and host-storage tests.
 
 Run:
 
     python -m pip install -e '.[dev]'
     pytest -q
     somolier-harness tests/fixtures
-
-The harness intentionally contains no RookOS, PAN, Hat, kiosk, or customer-policy
-logic.
 
 ## Status
 
