@@ -28,15 +28,21 @@ def main() -> None:
 
     failed = 0
     for i, path in enumerate(files, start=1):
-        result = run_case(str(path), path.read_bytes())
+        result = run_case(str(path), path.read_bytes(), source_name=path.name)
         if args.json:
             print(json.dumps(result.to_dict(), sort_keys=True))
         else:
             mark = "PASS" if result.passed else "FAIL"
+            identity = (
+                f"b32kid={result.taste.packet.b32kid} "
+                f"content_id={result.taste.canonical_id}"
+                if result.taste is not None
+                else "b32kid=NONE"
+            )
             print(
                 f"[{i}/{total}] {mark} {path} "
-                f"decision={result.decision.disposition.value} "
-                f"id={result.taste.canonical_id}"
+                f"wiff={'PASS' if result.wiff.accepted else 'SPIT'} "
+                f"decision={result.decision.disposition.value} {identity}"
             )
         failed += 0 if result.passed else 1
 
