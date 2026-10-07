@@ -2,6 +2,7 @@ import pytest
 
 from somolier import (
     B32KID,
+    B32K_V1_MAGIC,
     DecisionReceipt,
     Disposition,
     FixedMemoryStoragePort,
@@ -14,7 +15,12 @@ from somolier import (
 )
 
 
-def _swallowed(payload=b"wine", name="wine.b32k"):
+def _file(body=b"wine"):
+    return B32K_V1_MAGIC + body
+
+
+def _swallowed(body=b"wine", name="wine.b32k"):
+    payload = _file(body)
     wr = wiff(payload, source_name=name)
     sr = swirl(payload, wr)
     tr = Somolier().taste(sr)
@@ -25,7 +31,7 @@ def _swallowed(payload=b"wine", name="wine.b32k"):
         failed_gates=(),
         reason="test admission",
     )
-    return wr, sr, tr, decision
+    return payload, wr, sr, tr, decision
 
 
 def test_b32kid_requires_explicit_prefix():
@@ -34,7 +40,7 @@ def test_b32kid_requires_explicit_prefix():
 
 
 def test_host_placement_happens_only_after_swallow():
-    wr, sr, tr, decision = _swallowed()
+    payload, wr, sr, tr, decision = _swallowed()
     host = FixedMemoryStoragePort(location="memory://accepted/wine")
     stream_receipt = stream_swallowed(sr, wr, decision, host)
     returned = caller_receipt(
@@ -47,12 +53,13 @@ def test_host_placement_happens_only_after_swallow():
     assert returned.stage is Stage.SWALLOW
     assert returned.b32kid == sr.b32kid
     assert returned.streamed_artifacts == stream_receipt.artifacts
-    assert host.read(stream_receipt.allocation, "wine.b32k") == b"wine"
+    assert host.read(stream_receipt.allocation, "wine.b32k") == payload
 
 
 def test_spit_cannot_stream_but_still_gets_caller_receipt():
-    wr = wiff(b"wine", source_name="wine.b32k")
-    sr = swirl(b"wine", wr)
+    payload = _file()
+    wr = wiff(payload, source_name="wine.b32k")
+    sr = swirl(payload, wr)
     tr = Somolier().taste(sr)
     host = FixedMemoryStoragePort(location="memory://rejected/wine")
     decision = DecisionReceipt(
