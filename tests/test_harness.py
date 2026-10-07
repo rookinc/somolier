@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from somolier import Disposition, RegisteredDecider, UnregisteredDecider
+from somolier import (
+    DependencyState,
+    Disposition,
+    RegisteredDecider,
+    UnregisteredDecider,
+)
 from somolier.harness import run_case
 
 
@@ -35,21 +40,32 @@ def test_harness_registered_decider_only_swallows_all_pass():
     decider = RegisteredDecider(
         authority="generic-test-authority",
         required_gates=("integrity", "policy"),
+        required_ports=("storage",),
     )
     spit = run_case(
         "one-gate-fails",
         payload,
         decider=decider,
         gate_results={"integrity": True, "policy": False},
+        port_results={"storage": DependencyState.READY},
     )
     swallow = run_case(
         "all-gates-pass",
         payload,
         decider=decider,
         gate_results={"integrity": True, "policy": True},
+        port_results={"storage": DependencyState.READY},
+    )
+    disconnected = run_case(
+        "port-disconnected",
+        payload,
+        decider=decider,
+        gate_results={"integrity": True, "policy": True},
+        port_results={"storage": DependencyState.DISCONNECTED},
     )
     assert spit.decision.disposition is Disposition.SPIT
     assert swallow.decision.disposition is Disposition.SWALLOW
+    assert disconnected.decision.disposition is Disposition.SPIT
 
 
 def test_harness_empty_fixture_is_flagged_but_preserved():
