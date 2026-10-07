@@ -5,13 +5,7 @@ from hashlib import sha256
 from typing import Any, Mapping, Protocol
 
 from .decider import RegisteredDecider, UnregisteredDecider
-from .model import (
-    B32KID,
-    DecisionReceipt,
-    DependencyState,
-    TasteReceipt,
-    WiffReceipt,
-)
+from .model import DecisionReceipt, DependencyState, TasteReceipt, WiffReceipt
 from .pipeline import Somolier, swirl, wiff
 
 
@@ -39,7 +33,12 @@ class HarnessResult:
         return {
             "case": self.case,
             "source_digest": self.source_digest,
-            "wiff": asdict(self.wiff),
+            "wiff": {
+                "b32kid": str(self.wiff.b32kid),
+                "size_bytes": self.wiff.size_bytes,
+                "surface_type": self.wiff.surface_type,
+                "flags": list(self.wiff.flags),
+            },
             "taste": {
                 "backend": self.taste.backend,
                 "canonical_id": self.taste.canonical_id,
@@ -63,12 +62,6 @@ class HarnessResult:
         }
 
 
-def _harness_b32kid(case: str, source_digest: str) -> B32KID:
-    # Deterministic test-only event identity. Production identities are host-issued.
-    case_digest = sha256(case.encode("utf-8")).hexdigest()[:16]
-    return B32KID(f"b32kid:harness:{case_digest}:{source_digest[:16]}")
-
-
 def run_case(
     case: str,
     payload: bytes,
@@ -78,18 +71,16 @@ def run_case(
     decider: HarnessDecider | None = None,
     gate_results: Mapping[str, bool] | None = None,
     port_results: Mapping[str, DependencyState | str] | None = None,
-    b32kid: B32KID | None = None,
 ) -> HarnessResult:
     """Run one deterministic Somolier harness case."""
 
     som = somolier or Somolier()
     source_digest = sha256(payload).hexdigest()
-    packet_id = b32kid or _harness_b32kid(case, source_digest)
 
     wr = wiff(payload, surface_type=surface_type)
     sealed = swirl(payload)
-    tr1 = som.taste(sealed, b32kid=packet_id)
-    tr2 = som.taste(sealed, b32kid=packet_id)
+    tr1 = som.taste(sealed, b32kid=wr.b32kid)
+    tr2 = som.taste(sealed, b32kid=wr.b32kid)
 
     roundtrip_ok = som.render(tr1) == payload
     evidence_preserved = sealed == payload
@@ -98,6 +89,7 @@ def run_case(
         and tr1.backend == tr2.backend
         and tr1.source_size == tr2.source_size
         and tr1.packet.b32kid == tr2.packet.b32kid
+        and tr1.packet.b32kid == wr.b32kid
     )
 
     chosen = decider or UnregisteredDecider()
