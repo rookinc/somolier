@@ -2,8 +2,8 @@
 
 Somolier does not choose quarantine paths.
 
-It also does not ask the host to mint identity. Every WIFF deterministically
-mints a valid B32KID from the exact incoming bytes:
+Every WIFF deterministically mints a valid B32KID from the exact incoming
+bytes:
 
     B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
@@ -15,6 +15,18 @@ The host StoragePort receives that B32KID and chooses only placement:
 
 A storage adapter MUST preserve the supplied B32KID.
 
+## Storage verbs
+
+The canonical file-output verb is STREAM:
+
+    stream(allocation, artifact_name, payload) -> location
+
+STREAM means Somolier emits an artifact into host-owned storage. It does not
+imply a particular filesystem API, transport, buffering strategy, database, or
+object store.
+
+READ is the inverse retrieval verb used by the current reference adapter.
+
 ## Identity rule
 
     B32KID = deterministic WIFF identity
@@ -23,13 +35,9 @@ A storage adapter MUST preserve the supplied B32KID.
 Therefore the same exact bytes produce the same B32KID regardless of which
 host, filesystem, object store, or quarantine service receives them.
 
-This preserves Somolier's core law:
-
-    same input + same config = same identity
-
 ## Artifacts
 
-The reference quarantine step asks the host to store:
+The reference quarantine step streams:
 
     original.bin
     source.sha256
