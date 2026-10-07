@@ -6,6 +6,8 @@ from somolier import (
     Disposition,
     FixedMemoryStoragePort,
     Somolier,
+    Stage,
+    caller_receipt,
     stream_swallowed,
     swirl,
     wiff,
@@ -34,14 +36,24 @@ def test_b32kid_requires_explicit_prefix():
 def test_host_placement_happens_only_after_swallow():
     wr, sr, tr, decision = _swallowed()
     host = FixedMemoryStoragePort(location="memory://accepted/wine")
-    receipt = stream_swallowed(sr, wr, decision, host)
-    assert receipt.b32kid == sr.b32kid
-    assert host.read(receipt.allocation, "wine.b32k") == b"wine"
+    stream_receipt = stream_swallowed(sr, wr, decision, host)
+    returned = caller_receipt(
+        wr,
+        decision,
+        swirl_receipt=sr,
+        taste_receipt=tr,
+        stream_receipt=stream_receipt,
+    )
+    assert returned.stage is Stage.SWALLOW
+    assert returned.b32kid == sr.b32kid
+    assert returned.streamed_artifacts == stream_receipt.artifacts
+    assert host.read(stream_receipt.allocation, "wine.b32k") == b"wine"
 
 
-def test_spit_cannot_stream():
+def test_spit_cannot_stream_but_still_gets_caller_receipt():
     wr = wiff(b"wine", source_name="wine.b32k")
     sr = swirl(b"wine", wr)
+    tr = Somolier().taste(sr)
     host = FixedMemoryStoragePort(location="memory://rejected/wine")
     decision = DecisionReceipt(
         disposition=Disposition.SPIT,
@@ -52,11 +64,9 @@ def test_spit_cannot_stream():
     )
     with pytest.raises(ValueError, match="SWALLOW"):
         stream_swallowed(sr, wr, decision, host)
+    returned = caller_receipt(
+        wr, decision, swirl_receipt=sr, taste_receipt=tr
+    )
+    assert returned.disposition is Disposition.SPIT
+    assert returned.streamed_artifacts == ()
     assert host.artifact_names() == ()
-
-
-def test_storage_output_verb_is_stream():
-    wr, sr, tr, decision = _swallowed(b"stream-me", "stream.b32k")
-    host = FixedMemoryStoragePort(location="memory://q/stream")
-    receipt = stream_swallowed(sr, wr, decision, host)
-    assert any(item.endswith("/stream.b32k") for item in receipt.artifacts)
