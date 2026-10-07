@@ -23,15 +23,19 @@ Every WIFF mints a valid B32KID immediately:
 
     B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
-This is Somolier/B32K identity, not host identity. The same exact bytes produce
-the same B32KID on every host.
+The same exact bytes produce the same B32KID on every host.
 
-The host StoragePort is asked only where to place the files:
+## Host storage
 
-    WIFF(bytes) -> B32KID
-    StoragePort.allocate(B32KID, metadata) -> location
+The host chooses placement; Somolier owns the storage verbs.
 
-The host must preserve the supplied B32KID.
+    allocate(...) -> location
+    stream(allocation, artifact_name, payload) -> location
+    read(allocation, artifact_name) -> bytes
+
+The canonical file-output verb is **STREAM**. Somolier streams artifacts to a
+host-owned destination without assuming whether that destination is a file,
+blob, object, database record, pipe, or remote service.
 
 ## B32K packet law
 
@@ -47,8 +51,7 @@ The B32K backend refuses packet construction without a B32KID.
 
 ## Native packet backend
 
-Somolier v0.1 ships with B32K as the default packet backend. Other packet
-backends may define different requirements.
+Somolier v0.1 ships with B32K as the default packet backend.
 
 ## King's Taster model
 
@@ -63,8 +66,8 @@ Run:
     somolier-harness tests/fixtures
 
 The harness checks deterministic WIFF/B32KID generation, B32K round trips,
-evidence preservation, fail-closed Decider behavior, disconnected ports, and
-host-independent quarantine identity.
+STREAM storage output, evidence preservation, fail-closed Decider behavior,
+disconnected ports, and host-independent quarantine identity.
 
 ## Status
 
