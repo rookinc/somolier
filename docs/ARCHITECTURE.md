@@ -2,71 +2,62 @@
 
     incoming object
         |
-       WIFF      cheap wrapper sniff
+       WIFF      the nose/lips gate
         |
-   StoragePort   host returns B32KID + quarantine location
+      SPIT <-----+ failed type/admissibility
         |
-     quarantine  original evidence stored under host allocation
+      PASS
         |
-      SWIRL      sealing boundary
+      SWIRL      sealing boundary + B32KID issuance
         |
-      TASTE      Somolier normalization / packetization
+      TASTE      deterministic normalization / packetization
         |
      Decider     external configured gates and dependency states
        / \
     SPIT SWALLOW
+             |
+          StoragePort
+             |
+           STREAM
+
+## WIFF / the nose
+
+WIFF owns a configured list of valid file types. The stock distribution ships
+with exactly one valid type:
+
+    .b32k
+
+A file that does not pass WIFF gets no B32KID and does not proceed to SWIRL.
+
+The valid type list is configuration, so a host may deliberately extend it,
+but the shipped default remains .b32k only.
+
+## SWIRL identity boundary
+
+B32KID issuance occurs in SWIRL, never WIFF.
+
+    WIFF PASS -> SWIRL -> B32KID
+
+With the current deterministic reference implementation:
+
+    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
+
+## Persistence boundary
+
+Host placement is after the Decider. Default behavior is:
+
+    SPIT    -> no allocation, no STREAM
+    SWALLOW -> host allocation -> STREAM
+
+Somolier therefore does not persist material it has already rejected unless a
+future explicit retention policy says otherwise.
 
 ## Deterministic service law
 
-Somolier is a one-in / one-out deterministic transducer.
-
-For fixed input bytes, fixed configuration, fixed reported dependency states,
-and the same host-provided allocation, the output is fixed:
-
-    same input + same config + same dependency state + same host allocation
-        = same output
-
-The algorithm does not adapt itself to ambient context. Variability belongs in
-explicit configuration, explicit port-state inputs, and explicit host port
-responses.
-
-## Quarantine identity and placement
-
-Somolier computes SHA-256 content identity but does not choose a quarantine
-path and does not mint random event IDs.
-
-The host StoragePort returns:
-
-    B32KID   ingestion-event identity
-    location opaque host storage handle
-
-Thus:
-
-    SHA-256 = what bytes?
-    B32KID  = which ingestion event?
-
-See HOST_STORAGE_PORT.md.
-
-## Responsibility split
-
-Somolier owns representation normalization and packet formation. It does not
-decide truth or embed downstream business policy.
-
-The Decider is an external port. An unregistered Decider always returns SPIT.
-A registered Decider returns SWALLOW only when all required ports are READY
-and all required gates pass.
-
-## Fail-closed connectivity
-
-Configured dependencies report READY, DISCONNECTED, or FAILED. Missing status
-for a required dependency is treated as DISCONNECTED. Every non-READY state
-produces SPIT.
+For fixed bytes, valid-file-type configuration, dependency state, and Decider
+inputs, Somolier follows the same algorithm and produces the same receipts.
 
 ## Packet backend
 
-Somolier uses a plugin interface for packet backends. B32K is bundled and
-configured by default in v0.1.
-
-    surface is presentation
-    packet backend owns canonical packet representation
-    Decider owns admission
+B32K is bundled and configured by default. Every B32K packet carries the
+B32KID issued by SWIRL.
