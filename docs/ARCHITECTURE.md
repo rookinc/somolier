@@ -10,11 +10,11 @@
         |
       PASS
         |
-      SWIRL      sealing boundary + B32KID issuance
+      SWIRL      sealing boundary
         |
-      TASTE      deterministic normalization / packetization
+      TASTE      qualification
         |
-     Decider
+      DECIDE     fail-closed admission
        / \
     SPIT SWALLOW
      |       |
@@ -40,17 +40,20 @@ match B32KV001.
 A file that merely has a .b32k suffix but the wrong raw header is rejected with
 invalid_file_header and gets no B32KID.
 
-## SWIRL identity boundary
+## DECIDE
 
-    WIFF PASS -> SWIRL -> B32KID
+DECIDE is the canonical admission verb and stage name.
+
+The implementation's policy objects may expose a decide(...) method, but the
+protocol stage itself is DECIDE, not DECIDER.
 
 ## Caller return law
 
 Every completed handling attempt returns a receipt to the original caller.
 
     WIFF FAIL -> caller receipt, no B32KID
-    DECIDER SPIT -> caller receipt + B32KID, no STREAM
-    SWALLOW -> STREAM -> caller receipt + B32KID + streamed locations
+    DECIDE -> SPIT -> caller receipt, no STREAM
+    DECIDE -> SWALLOW -> STREAM -> caller receipt + streamed locations
 
 ## Persistence boundary
 
