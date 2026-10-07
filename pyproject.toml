@@ -16,6 +16,7 @@ dev = ["pytest>=8"]
 
 [project.scripts]
 somolier = "somolier.cli:main"
+somolier-harness = "somolier.harness_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
