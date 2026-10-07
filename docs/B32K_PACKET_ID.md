@@ -4,32 +4,31 @@ B32K requires every packet to carry a B32KID.
 
     B32KPacket = (B32KID, words)
 
-## Two identities
+## WIFF owns identity
 
-B32K keeps event identity and content identity separate:
+Every WIFF generates a valid deterministic B32KID before quarantine or host
+storage is consulted:
 
-    B32KID       = ingestion-event / provenance identity
-    canonical_id = content identity
+    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
-The B32KID is host-issued before packetization and follows the event into the
-packet. A B32K encoder MUST refuse to create a packet when no B32KID is
-provided.
+The host does not mint or alter it. The host only chooses storage placement.
 
-The canonical content ID remains a digest of packet words only. Therefore:
+The identity then follows the object through the chain:
 
-    same content, event A -> B32KID A, canonical ID X
-    same content, event B -> B32KID B, canonical ID X
+    bytes
+      -> WIFF(B32KID)
+      -> host quarantine placement
+      -> SWIRL
+      -> TASTE
+      -> B32KPacket(B32KID, words)
 
-This is intentional. It allows provenance to distinguish repeated ingestion
-without pretending repeated bytes are different content.
+A B32K backend still rejects any packet construction without a B32KID.
 
-## Quarantine flow
+## Canonical content identity
 
-    host allocates B32KID
-        -> quarantine receipt
-        -> sealed bytes
-        -> B32K encode(bytes, B32KID)
-        -> B32KPacket(B32KID, words)
+B32K currently also exposes canonical_id, the digest of the B32K word
+representation. B32KID and canonical_id are both deterministic, but serve
+different protocol roles:
 
-Somolier's taste_quarantine() helper carries the quarantine B32KID into the
-packet automatically.
+    B32KID       = identity minted at first contact by WIFF
+    canonical_id = identity of normalized B32K packet content
