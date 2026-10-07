@@ -1,20 +1,20 @@
 # Somolier
 
 Somolier is a deterministic, fail-closed ingestion and normalization codec with
-a pluggable packet backend and an external Decider port.
+pluggable storage, packet, and Decider ports.
 
 Its canonical ritual is:
 
-    WIFF -> SWIRL -> TASTE -> DECIDER -> SPIT | SWALLOW
+    WIFF -> HOST STORAGE -> SWIRL -> TASTE -> DECIDER -> SPIT | SWALLOW
 
 Somolier **describes and normalizes**. The Decider **admits or rejects**.
 
 ## Core promise
 
-    somolier(input, config, dependency_state) -> output
+    somolier(input, config, dependency_state, host_ports) -> output
 
-For the same input, same configuration, and same reported dependency state,
-Somolier produces the same output.
+For the same input, same configuration, same reported dependency state, and
+same explicit host-port responses, Somolier produces the same output.
 
 There is no permissive disconnected mode:
 
@@ -24,6 +24,24 @@ There is no permissive disconnected mode:
 - FAILED dependency -> SPIT
 - missing or failed required gate -> SPIT
 - SWALLOW only when every required port is READY and every required gate passes
+
+## Host storage and B32KID
+
+Somolier never hardcodes a quarantine path. It asks the host StoragePort where
+to put an ingestion event.
+
+The host returns:
+
+    B32KID  = unique ingestion-event identity
+    location = opaque quarantine location/handle
+
+Somolier separately computes SHA-256 content identity:
+
+    SHA-256 = what bytes are these?
+    B32KID  = which ingestion event is this?
+
+The same content may therefore have the same SHA-256 and different B32KIDs on
+different ingestion events.
 
 ## Native packet backend
 
@@ -41,15 +59,9 @@ the King's Taster: nothing is consumed until it has earned SWALLOW.
 
 ## Test harness
 
-Somolier ships a policy-neutral test harness with:
-
-- golden fixtures
-- deterministic receipt checks
-- B32K round-trip checks
-- evidence-preservation checks
-- fail-closed Decider tests
-- disconnected-port tests
-- progress output suitable for Termux
+Somolier ships a policy-neutral test harness with deterministic receipt checks,
+B32K round-trip checks, evidence-preservation checks, fail-closed Decider
+tests, disconnected-port tests, and host-storage/B32KID tests.
 
 Run:
 
@@ -57,23 +69,14 @@ Run:
     pytest -q
     somolier-harness tests/fixtures
 
-Machine-readable harness output:
-
-    somolier-harness tests/fixtures --json
-
 The harness intentionally contains no RookOS, PAN, Hat, kiosk, or customer-policy
 logic.
 
 ## Status
 
-Early reference implementation. The current B32K backend provides a reversible
-byte-to-B32K packetization path. Higher-level semantic dictionaries and
-production cryptographic SWIRL adapters remain separate work.
-
-## Development
-
-    python -m pip install -e '.[dev]'
-    pytest -q
+Early reference implementation. B32K is the bundled packet backend. Host
+storage is a port, not protocol-owned placement. Production cryptographic
+SWIRL adapters remain separate work.
 
 ## License
 
