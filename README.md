@@ -18,13 +18,26 @@ Its canonical ritual is:
                 |
           CALLER RECEIPT
 
-## WIFF: the nose / lips
+## WIFF: the nose
 
 The stock valid-file-type list contains exactly:
 
     .b32k
 
-A non-.b32k file is SPIT before identity issuance.
+The stock .b32k v1 raw-byte header is exactly:
+
+    42 33 32 4B 56 30 30 31
+
+ASCII:
+
+    B32KV001
+
+Stock WIFF therefore requires both:
+
+    extension == ".b32k"
+    first 8 bytes == B32KV001
+
+A renamed or malformed file is SPIT before identity issuance.
 
     WIFF FAIL -> no B32KID -> CALLER RECEIPT
 
