@@ -27,7 +27,7 @@ class DependencyState(str, Enum):
 
 @dataclass(frozen=True, order=True)
 class B32KID:
-    """Deterministic B32K identity minted by WIFF."""
+    """Deterministic B32K identity issued by SWIRL after WIFF passes."""
 
     value: str
 
@@ -37,6 +37,24 @@ class B32KID:
 
     def __str__(self) -> str:
         return self.value
+
+
+@dataclass(frozen=True)
+class WiffReceipt:
+    accepted: bool
+    source_name: str
+    extension: str
+    size_bytes: int
+    surface_type: str
+    valid_file_types: Tuple[str, ...]
+    flags: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SwirlReceipt:
+    b32kid: B32KID
+    sealed: bytes
+    source_digest: str
 
 
 @dataclass(frozen=True)
@@ -91,14 +109,6 @@ class ReadinessReceipt:
             for name in self.required_ports
             if status_by_name.get(name) is not DependencyState.READY
         )
-
-
-@dataclass(frozen=True)
-class WiffReceipt:
-    b32kid: B32KID
-    size_bytes: int
-    surface_type: str
-    flags: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
