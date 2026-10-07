@@ -27,7 +27,7 @@ class DependencyState(str, Enum):
 
 @dataclass(frozen=True, order=True)
 class B32KID:
-    """Opaque host-issued identity for one ingestion/quarantine event."""
+    """Deterministic B32K identity minted by WIFF."""
 
     value: str
 
@@ -95,6 +95,7 @@ class ReadinessReceipt:
 
 @dataclass(frozen=True)
 class WiffReceipt:
+    b32kid: B32KID
     size_bytes: int
     surface_type: str
     flags: Tuple[str, ...] = ()
