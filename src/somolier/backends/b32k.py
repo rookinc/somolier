@@ -33,8 +33,7 @@ class B32KPacket:
 class B32KBackend:
     """Default Somolier packet backend.
 
-    B32K requires every packet to carry a host-issued B32KID. The identifier is
-    event identity; canonical_id remains content identity over the packet words.
+    Every B32K packet carries the B32KID minted by WIFF.
     """
 
     name = "b32k"
