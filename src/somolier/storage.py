@@ -11,6 +11,9 @@ class StoragePort(Protocol):
     """Host-provided quarantine placement interface.
 
     WIFF already minted the B32KID. The host chooses only the location/handle.
+
+    File output uses the verb STREAM: Somolier streams named artifacts to the
+    host-owned storage port.
     """
 
     name: str
@@ -24,7 +27,7 @@ class StoragePort(Protocol):
     ) -> QuarantineAllocation:
         ...
 
-    def write(
+    def stream(
         self,
         allocation: QuarantineAllocation,
         artifact_name: str,
@@ -69,7 +72,7 @@ class FixedMemoryStoragePort:
             location=self.location,
         )
 
-    def write(
+    def stream(
         self,
         allocation: QuarantineAllocation,
         artifact_name: str,
