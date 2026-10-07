@@ -8,13 +8,7 @@ from .model import B32KID, QuarantineAllocation
 
 @runtime_checkable
 class StoragePort(Protocol):
-    """Host-provided quarantine placement interface.
-
-    WIFF already minted the B32KID. The host chooses only the location/handle.
-
-    File output uses the verb STREAM: Somolier streams named artifacts to the
-    host-owned storage port.
-    """
+    """Host-provided post-SWALLOW placement interface."""
 
     name: str
 
@@ -67,10 +61,7 @@ class FixedMemoryStoragePort:
             raise ValueError(
                 "FixedMemoryStoragePort is bound to one ingestion identity"
             )
-        return QuarantineAllocation(
-            b32kid=b32kid,
-            location=self.location,
-        )
+        return QuarantineAllocation(b32kid=b32kid, location=self.location)
 
     def stream(
         self,
