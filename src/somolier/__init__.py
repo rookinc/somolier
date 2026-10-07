@@ -4,6 +4,7 @@ from .decider import RegisteredDecider, UnregisteredDecider
 from .harness import HarnessResult, run_case
 from .model import (
     B32KID,
+    CallerReceipt,
     DecisionReceipt,
     DependencyState,
     Disposition,
@@ -19,6 +20,7 @@ from .model import (
 from .pipeline import (
     DEFAULT_VALID_FILE_TYPES,
     Somolier,
+    caller_receipt,
     stream_swallowed,
     swirl,
     wiff,
@@ -32,6 +34,7 @@ __all__ = [
     "B32KBackend",
     "B32KPacket",
     "B32KID",
+    "CallerReceipt",
     "RegisteredDecider",
     "UnregisteredDecider",
     "HarnessResult",
@@ -49,6 +52,7 @@ __all__ = [
     "WiffReceipt",
     "DEFAULT_VALID_FILE_TYPES",
     "Somolier",
+    "caller_receipt",
     "stream_swallowed",
     "swirl",
     "wiff",
