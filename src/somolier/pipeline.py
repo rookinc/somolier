@@ -61,16 +61,16 @@ def quarantine(
         raise ValueError("storage port changed the WIFF-minted B32KID")
 
     artifacts = []
-    artifacts.append(storage.write(allocation, "original.bin", payload))
+    artifacts.append(storage.stream(allocation, "original.bin", payload))
     artifacts.append(
-        storage.write(
+        storage.stream(
             allocation,
             "source.sha256",
             (source_digest + "\n").encode("ascii"),
         )
     )
     artifacts.append(
-        storage.write(
+        storage.stream(
             allocation,
             "wiff.json",
             (
@@ -79,7 +79,7 @@ def quarantine(
             ).encode("utf-8"),
         )
     )
-    artifacts.append(storage.write(allocation, "sealed.bin", swirl(payload)))
+    artifacts.append(storage.stream(allocation, "sealed.bin", swirl(payload)))
 
     return QuarantineReceipt(
         allocation=allocation,
