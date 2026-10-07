@@ -25,6 +25,45 @@ class DependencyState(str, Enum):
     FAILED = "FAILED"
 
 
+@dataclass(frozen=True, order=True)
+class B32KID:
+    """Opaque host-issued identity for one ingestion/quarantine event."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if not self.value or not self.value.startswith("b32kid:"):
+            raise ValueError("B32KID must be a nonempty 'b32kid:' identifier")
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class QuarantineAllocation:
+    b32kid: B32KID
+    location: str
+
+    def __post_init__(self) -> None:
+        if not self.location:
+            raise ValueError("quarantine location/handle must be nonempty")
+
+
+@dataclass(frozen=True)
+class QuarantineReceipt:
+    allocation: QuarantineAllocation
+    source_digest: str
+    artifacts: Tuple[str, ...]
+
+    @property
+    def b32kid(self) -> B32KID:
+        return self.allocation.b32kid
+
+    @property
+    def location(self) -> str:
+        return self.allocation.location
+
+
 @dataclass(frozen=True)
 class PortStatus:
     name: str
