@@ -1,30 +1,30 @@
-# Somolier Test Harness v0.1
+# Somolier Conformance Harness
 
-The harness exercises Somolier independently of RookOS or any other policy system.
+The harness exists to prove behavior against requirements, not to preserve prototype outputs.
 
-## Core invariants
+## Required test layers
 
-1. Same source bytes produce the same source digest.
-2. Same source bytes under the same backend produce the same canonical packet identity.
-3. Supported payloads round-trip exactly through the bundled B32K backend.
-4. SWIRL v0.1 preserves the evidence bytes exactly.
-5. An unregistered Decider always returns SPIT.
-6. A registered Decider reaches SWALLOW only when every required gate passes.
-7. Empty and malformed specimens remain testable evidence; the harness does not delete them.
+1. B32K normative vectors: canonicalization Appendix A, 15-bit packing, and established BLAKE3/handle vectors.
+2. Somolier stage tests: WIFF, SWIRL, TASTE, DECIDE, SPIT, SWALLOW, STREAM.
+3. Receipt tests: every final receipt has receipt_b32kid; identity recomputes; subject identity is absent before TASTE PASS; receipt and subject identities remain distinct.
+4. Negative/security tests: malformed canonical data, duplicate keys, invalid indices, bad padding, changed receipts, identity mismatch, disconnected dependencies, and gate failure.
 
-## Run
+## Public entry-point rule
 
-    python -m pip install -e '.[dev]'
-    pytest -q
-    somolier-harness tests/fixtures
+The primary harness MUST exercise:
 
-Machine-readable output:
+    somolier <filename>
 
-    somolier-harness tests/fixtures --json
+or the equivalent single public service function. It MUST NOT reproduce the state machine manually as its main conformance path.
 
-The CLI prints progress as [current/total] for phone and Termux use.
+## Output
 
-## Policy boundary
+Progress output SHOULD retain:
 
-The harness ships no RookOS policy and knows nothing about PAN, Hats, kiosks,
-or organization authority. RegisteredDecider in tests is a generic mock decision surface.
+    [current/total] PASS|FAIL ...
+
+for Termux/mobile use.
+
+## Boundary
+
+The harness contains no RookOS/PAN/Hat/kiosk policy. External authorization is represented only by generic test policy inputs.
