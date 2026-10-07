@@ -8,7 +8,7 @@ Its canonical ritual is:
       -> WIFF
       -> SWIRL
       -> TASTE
-      -> DECIDER
+      -> DECIDE
       -> SPIT | SWALLOW
                    |
                  HOST
@@ -41,11 +41,22 @@ A renamed or malformed file is SPIT before identity issuance.
 
     WIFF FAIL -> no B32KID -> CALLER RECEIPT
 
-## SWIRL: identity issuance
+## SWIRL
 
-    WIFF PASS -> SWIRL(B32KID)
+SWIRL is the sealing boundary.
 
-Every B32K packet carries this SWIRL-issued B32KID.
+## TASTE
+
+TASTE qualifies a sealed specimen for the next stage.
+
+## DECIDE
+
+DECIDE is the fail-closed admission stage.
+
+A specimen that reaches DECIDE receives exactly one disposition:
+
+    SPIT
+    SWALLOW
 
 ## Caller receipt
 
@@ -54,8 +65,8 @@ caller.
 
 A WIFF rejection returns disposition/reason/flags but no B32KID.
 
-A specimen that reaches the Decider returns its B32KID and canonical content ID
-with the SPIT/SWALLOW result.
+A specimen that reaches DECIDE returns its available identity and decision
+information with the SPIT/SWALLOW result.
 
 After SWALLOW and STREAM, the receipt also carries the host-returned artifact
 locations.
