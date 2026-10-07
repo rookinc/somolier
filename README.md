@@ -1,64 +1,46 @@
 # Somolier
 
-Somolier is a deterministic, fail-closed ingestion and normalization codec.
+Somolier is a deterministic, fail-closed file-ingestion and qualification service being rebuilt as a B32K-aligned reference implementation.
 
-Its canonical ritual is:
+Public shape:
 
-    INPUT
-      -> WIFF
-      -> SWIRL
-      -> TASTE
-      -> DECIDE
-      -> SPIT | SWALLOW
-                   |
-                 HOST
-                   |
-                 STREAM
-          \___________/
-                |
-          CALLER RECEIPT (.b32k)
+    somolier <filename>
+        -> WIFF
+        -> SWIRL
+        -> TASTE
+        -> DECIDE
+        -> SPIT | SWALLOW
+        -> caller receipt
 
-## WIFF: the nose
+## Conformance policy
 
-The stock valid-file-type list contains exactly:
+The supplied B32K specification is authoritative for anything Somolier calls B32K.
 
-    .b32k
+Somolier adopts B32K canonical CBOR, 15-bit index/packing rules, BLAKE3 digest/handle semantics, HTTPQ terminology, and O-1 receipt semantics as specified.
 
-The stock .b32k v1 raw-byte header is exactly:
+Somolier-specific concepts such as WIFF/SWIRL/TASTE/DECIDE, B32KID, STREAM, the .b32k filename convention, and B32KV001 framing are profile extensions and are not represented as base B32K requirements.
 
-    42 33 32 4B 56 30 30 31
+The current code is a prototype under conformance rebuild. Do not infer full B32K compliance from the existing implementation.
 
-ASCII:
+See:
 
-    B32KV001
+    docs/ba/CONFORMANCE_PROFILE.md
+    docs/ba/REQUIREMENTS_INDEX.md
+    docs/ba/DATA_DICTIONARY.md
+    docs/ba/STATE_MACHINE.md
+    docs/ba/TRACEABILITY_MATRIX.md
 
-## Caller receipt format
+## Core policy
 
-Every completed handling attempt returns its receipt in .b32k format.
-
-The wire form is:
-
-    B32KV001 + canonical UTF-8 JSON body
-
-The JSON body is deterministic: keys are sorted and compact separators are
-used. It contains receipt kind, version, source name, stage, disposition,
-reason, available identities, streamed artifact locations, and flags.
-
-A WIFF rejection still produces a valid .b32k receipt, but its b32kid field is
-null because the rejected input itself was never named.
-
-Stored SWALLOW receipts are written as:
-
-    receipt.b32k
-
-No receipt.json file is part of the canonical output.
-
-## HOST and STREAM
-
-    SPIT    -> no allocation, no STREAM -> .b32k CALLER RECEIPT
-    SWALLOW -> host allocation -> STREAM -> .b32k CALLER RECEIPT
-
-STREAM is the canonical file-output verb.
+- WIFF recognizes; it does not execute.
+- SWIRL isolates/seals.
+- TASTE validates/qualifies and establishes subject genesis identity on PASS.
+- DECIDE fails closed to SPIT unless all required evidence passes.
+- SPIT does not persist the subject by default.
+- SWALLOW owns final build/compute, host placement and STREAM.
+- Every final caller receipt has its own receipt B32KID.
+- B32KID is a Somolier handle-derived label; it is not HTTPQ packet_id.
+- Canonical cryptographic authority is B32K N(x), not JSON formatting.
 
 ## Development
 
@@ -66,11 +48,8 @@ STREAM is the canonical file-output verb.
     pytest -q
     somolier-harness tests/fixtures
 
-## Status
-
-Early reference implementation. B32K is the sole shipped WIFF file type and
-the default packet backend.
+The current tests exercise the prototype and will be replaced or expanded by normative B32K conformance vectors during the rebuild.
 
 ## License
 
-License selection is intentionally pending project-owner approval.
+Project license selection remains pending project-owner approval. The supplied B32K specification identifies its own license separately.
