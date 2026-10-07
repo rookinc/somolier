@@ -12,10 +12,17 @@ from .model import (
     QuarantineReceipt,
     ReadinessReceipt,
     Stage,
+    SwirlReceipt,
     TasteReceipt,
     WiffReceipt,
 )
-from .pipeline import Somolier, quarantine, swirl, wiff
+from .pipeline import (
+    DEFAULT_VALID_FILE_TYPES,
+    Somolier,
+    stream_swallowed,
+    swirl,
+    wiff,
+)
 from .readiness import check_readiness
 from .storage import FixedMemoryStoragePort, StoragePort
 
@@ -37,10 +44,12 @@ __all__ = [
     "QuarantineReceipt",
     "ReadinessReceipt",
     "Stage",
+    "SwirlReceipt",
     "TasteReceipt",
     "WiffReceipt",
+    "DEFAULT_VALID_FILE_TYPES",
     "Somolier",
-    "quarantine",
+    "stream_swallowed",
     "swirl",
     "wiff",
     "check_readiness",
