@@ -1,58 +1,61 @@
 # Somolier Architecture
 
-    incoming object
-        |
-       WIFF      nose: type + raw-byte header
-        |
-      SPIT <-----+ failed recognition
-        |               |
-        |          CALLER RECEIPT.b32k
-        |
-      PASS
-        |
-      SWIRL      sealing boundary
-        |
-      TASTE      qualification
-        |
-      DECIDE     fail-closed admission
-       / \
-    SPIT SWALLOW
-     |       |
-     |    StoragePort
-     |       |
-     |     STREAM
-     |       |
-     +-------+
-        |
- CALLER RECEIPT.b32k
+Status: target architecture for the B32K conformance rebuild.
 
-## Receipt law
+    INPUT
+      |
+      v
+    WIFF        recognize only
+      |
+      v
+    SWIRL       isolate/seal
+      |
+      v
+    TASTE       validate/qualify
+      |         establish subject genesis identity on PASS
+      v
+    DECIDE      fail-closed admission
+     /    \
+   SPIT  SWALLOW
+    |       |
+    |    build / compute admitted B32K representation
+    |       |
+    |    host placement
+    |       |
+    |     STREAM
+    \       /
+     CALLER RECEIPT
+       (always has receipt_b32kid)
 
-Caller receipts are B32K files.
+## B32K core beneath the stages
 
-    raw header: B32KV001
-    body: canonical compact UTF-8 JSON
+Somolier does not redefine B32K.
 
-A WIFF failure gets a .b32k receipt with no B32KID for the rejected input.
-A later receipt may carry the identities earned by later stages.
+The B32K layer provides canonicalization N(x), 15-bit index and packing semantics, BLAKE3 payload digest, B32K handle construction, optional HTTPQ transport, and optional O-1 ledger receipt verification.
 
-The persisted SWALLOW-side receipt is named:
+The Somolier stage machine decides when those primitives are invoked and how their results are exposed.
 
-    receipt.b32k
+## Identity layers
 
-## WIFF / the nose
+    payload_digest    B32K BLAKE3 digest
+    handle            B32K payload+context digest
+    packet_id         B32K HTTPQ UUIDv7 envelope ID
+    B32KID            Somolier handle-derived object label
+    receipt_b32kid    identity of the caller receipt
+    subject_b32kid    identity of the subject, if earned
+    storage_location  host placement only
 
-The shipped valid type registry contains one entry:
+These names are never interchangeable.
 
-    extension: .b32k
-    raw magic: 42 33 32 4B 56 30 30 31
-    ASCII:     B32KV001
+## File/profile framing
 
-## DECIDE
+.b32k and B32KV001 are Somolier profile conventions, not base B32K requirements, unless a future normative B32K artifact says otherwise.
 
-DECIDE is the canonical admission verb and stage name.
+A framing convention may help WIFF recognize a file, but it does not define canonical B32K identity.
 
-## Persistence boundary
+## Persistence
 
-    SPIT    -> no allocation, no STREAM
-    SWALLOW -> host allocation -> STREAM
+    SPIT    -> caller receipt; no subject STREAM by default
+    SWALLOW -> build/compute -> host placement -> STREAM -> caller receipt
+
+The caller receipt is a logical Somolier profile object whose authoritative bytes are derived through B32K canonicalization.
