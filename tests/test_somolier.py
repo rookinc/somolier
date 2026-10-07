@@ -14,22 +14,45 @@ from somolier import (
 )
 
 
-def test_every_wiff_mints_valid_b32kid():
-    left = wiff(b"wine")
-    right = wiff(b"wine")
-    assert isinstance(left.b32kid, B32KID)
-    assert str(left.b32kid).startswith("b32kid:sha256:")
-    assert left.b32kid == right.b32kid
+def _approved(payload=b"wine", name="wine.b32k"):
+    wr = wiff(payload, source_name=name)
+    assert wr.accepted
+    return swirl(payload, wr)
 
 
-def test_b32k_round_trip_uses_wiff_id():
-    payload = b"wine"
-    wr = wiff(payload)
+def test_stock_wiff_accepts_only_b32k():
+    assert wiff(b"x", source_name="x.b32k").accepted
+    rejected = wiff(b"x", source_name="x.json")
+    assert not rejected.accepted
+    assert "unsupported_file_type" in rejected.flags
+
+
+def test_wiff_does_not_issue_b32kid():
+    receipt = wiff(b"x", source_name="x.b32k")
+    assert not hasattr(receipt, "b32kid")
+
+
+def test_swirl_issues_b32kid_only_after_wiff_pass():
+    sr = _approved()
+    assert isinstance(sr.b32kid, B32KID)
+    assert str(sr.b32kid).startswith("b32kid:sha256:")
+    bad = wiff(b"x", source_name="x.txt")
+    with pytest.raises(ValueError, match="passing WIFF"):
+        swirl(b"x", bad)
+
+
+def test_empty_b32k_fails_wiff():
+    receipt = wiff(b"", source_name="empty.b32k")
+    assert not receipt.accepted
+    assert "empty_payload" in receipt.flags
+
+
+def test_b32k_round_trip_uses_swirl_id():
+    sr = _approved()
     som = Somolier(B32KBackend())
-    receipt = som.taste(payload)
-    assert receipt.backend == "b32k"
-    assert receipt.packet.b32kid == wr.b32kid
-    assert som.render(receipt) == payload
+    receipt = som.taste(sr)
+    assert receipt.packet.b32kid == sr.b32kid
+    assert som.render(receipt) == b"wine"
 
 
 def test_b32k_requires_b32kid_at_backend_boundary():
@@ -38,30 +61,19 @@ def test_b32k_requires_b32kid_at_backend_boundary():
 
 
 def test_b32k_validation_accepts_valid_id():
-    packet_id = wiff(b"abc").b32kid
-    packet = B32KPacket(b32kid=packet_id, words=(1, 2, 3))
+    sr = _approved(b"abc", "abc.b32k")
+    packet = B32KPacket(b32kid=sr.b32kid, words=(1, 2, 3))
     assert B32KBackend().validate(packet)
 
 
-def test_wiff_does_not_reject_empty_but_flags_it():
-    receipt = wiff(b"")
-    assert isinstance(receipt.b32kid, B32KID)
-    assert "empty_payload" in receipt.flags
-
-
-def test_swirl_placeholder_preserves_bytes():
-    payload = b"abc"
-    assert swirl(payload) == payload
-
-
 def test_unregistered_decider_hates_everything():
-    receipt = Somolier().taste(b"anything")
+    receipt = Somolier().taste(_approved(b"anything", "anything.b32k"))
     decision = UnregisteredDecider().decide(receipt)
     assert decision.disposition is Disposition.SPIT
 
 
 def test_registered_decider_requires_all_gates():
-    receipt = Somolier().taste(b"wine")
+    receipt = Somolier().taste(_approved())
     decider = RegisteredDecider(
         authority="test-authority",
         required_gates=("integrity", "policy"),
@@ -77,7 +89,7 @@ def test_registered_decider_requires_all_gates():
 
 
 def test_registered_decider_fails_closed_when_required_port_disconnected():
-    receipt = Somolier().taste(b"wine")
+    receipt = Somolier().taste(_approved())
     decider = RegisteredDecider(
         authority="test-authority",
         required_gates=("integrity",),
@@ -93,15 +105,3 @@ def test_registered_decider_fails_closed_when_required_port_disconnected():
     )
     assert decision.disposition is Disposition.SPIT
     assert decision.unavailable_ports == ("dictionary",)
-
-
-def test_missing_required_port_is_disconnected_and_spits():
-    receipt = Somolier().taste(b"wine")
-    decider = RegisteredDecider(
-        authority="test-authority",
-        required_gates=(),
-        required_ports=("storage",),
-    )
-    decision = decider.decide(receipt, gate_results={}, port_results={})
-    assert decision.disposition is Disposition.SPIT
-    assert decision.unavailable_ports == ("storage",)
