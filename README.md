@@ -1,78 +1,78 @@
 # Somolier
 
-Somolier is a deterministic, fail-closed ingestion and normalization codec with
-pluggable storage, packet, and Decider ports.
+Somolier is a deterministic, fail-closed ingestion and normalization codec.
 
 Its canonical ritual is:
 
-    WIFF -> HOST STORAGE -> SWIRL -> TASTE -> DECIDER -> SPIT | SWALLOW
+    INPUT
+      -> WIFF
+      -> SWIRL
+      -> TASTE
+      -> DECIDER
+      -> SPIT | SWALLOW
+                   |
+                 HOST
+                   |
+                 STREAM
 
-Somolier **describes and normalizes**. The Decider **admits or rejects**.
+## WIFF: the nose / lips
 
-## Core promise
+WIFF has an explicit valid-file-type list.
 
-    same input + same config = same WIFF identity
-    same input + same config + same dependency state = same processing result
+The stock Somolier distribution ships with exactly:
 
-There is no permissive disconnected mode: missing, DISCONNECTED, or FAILED
-required dependencies produce SPIT.
+    .b32k
 
-## B32KID starts at WIFF
+and nothing else.
 
-Every WIFF mints a valid B32KID immediately:
+A non-.b32k file fails WIFF under the stock configuration. It is SPIT before
+identity issuance.
+
+    WIFF FAIL -> SPIT -> no B32KID
+
+The list is configuration, so deployments may explicitly add types without
+changing the deterministic algorithm.
+
+## SWIRL: identity issuance
+
+Passing the lips earns entry to SWIRL. SWIRL seals the specimen and issues its
+B32KID.
+
+    WIFF PASS -> SWIRL(B32KID)
+
+The reference B32KID is deterministic:
 
     B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
-The same exact bytes produce the same B32KID on every host.
+Every B32K packet must carry this SWIRL-issued B32KID.
 
-## Host storage
+## TASTE and DECIDER
 
-The host chooses placement; Somolier owns the storage verbs.
+TASTE normalizes/packetizes the named specimen. DECIDER returns SPIT or
+SWALLOW and remains fail-closed.
 
-    allocate(...) -> location
-    stream(allocation, artifact_name, payload) -> location
-    read(allocation, artifact_name) -> bytes
+## HOST and STREAM
 
-The canonical file-output verb is **STREAM**. Somolier streams artifacts to a
-host-owned destination without assuming whether that destination is a file,
-blob, object, database record, pipe, or remote service.
+Host placement occurs only after SWALLOW by default.
 
-## B32K packet law
+    SPIT    -> no allocation, no file persistence
+    SWALLOW -> host allocation -> STREAM
 
-Every B32K packet MUST carry its WIFF B32KID:
+STREAM is the canonical file-output verb.
 
-    bytes
-      -> WIFF(B32KID)
-      -> quarantine
-      -> TASTE
-      -> B32KPacket(B32KID, words)
-
-The B32K backend refuses packet construction without a B32KID.
-
-## Native packet backend
-
-Somolier v0.1 ships with B32K as the default packet backend.
-
-## King's Taster model
-
-Nothing is consumed until it has earned SWALLOW.
-
-## Test harness
-
-Run:
+## Development
 
     python -m pip install -e '.[dev]'
     pytest -q
     somolier-harness tests/fixtures
 
-The harness checks deterministic WIFF/B32KID generation, B32K round trips,
-STREAM storage output, evidence preservation, fail-closed Decider behavior,
-disconnected ports, and host-independent quarantine identity.
+The harness treats rejected non-.b32k fixtures as successful fail-closed test
+cases: they must receive no B32KID and no TASTE receipt.
 
 ## Status
 
-Early reference implementation. B32K is bundled. Host storage is a placement
-port, not an identity authority. Production cryptographic SWIRL adapters remain
+Early reference implementation. B32K is the sole shipped WIFF file type and
+the default packet backend. Production cryptographic SWIRL adapters remain
 separate work.
 
 ## License
