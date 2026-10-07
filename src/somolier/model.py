@@ -19,6 +19,41 @@ class Disposition(str, Enum):
     SWALLOW = "SWALLOW"
 
 
+class DependencyState(str, Enum):
+    READY = "READY"
+    DISCONNECTED = "DISCONNECTED"
+    FAILED = "FAILED"
+
+
+@dataclass(frozen=True)
+class PortStatus:
+    name: str
+    state: DependencyState
+
+
+@dataclass(frozen=True)
+class ReadinessReceipt:
+    required_ports: Tuple[str, ...]
+    port_statuses: Tuple[PortStatus, ...]
+
+    @property
+    def ready(self) -> bool:
+        status_by_name = {status.name: status.state for status in self.port_statuses}
+        return all(
+            status_by_name.get(name) is DependencyState.READY
+            for name in self.required_ports
+        )
+
+    @property
+    def unavailable_ports(self) -> Tuple[str, ...]:
+        status_by_name = {status.name: status.state for status in self.port_statuses}
+        return tuple(
+            name
+            for name in self.required_ports
+            if status_by_name.get(name) is not DependencyState.READY
+        )
+
+
 @dataclass(frozen=True)
 class WiffReceipt:
     size_bytes: int
@@ -43,3 +78,4 @@ class DecisionReceipt:
     passed_gates: Tuple[str, ...]
     failed_gates: Tuple[str, ...]
     reason: str
+    unavailable_ports: Tuple[str, ...] = ()
