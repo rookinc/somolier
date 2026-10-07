@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+import json
+from dataclasses import asdict, dataclass
+from hashlib import sha256
 
 from .backend import PacketBackend
 from .backends.b32k import B32KBackend
-from .model import TasteReceipt, WiffReceipt
+from .model import QuarantineReceipt, TasteReceipt, WiffReceipt
+from .storage import StoragePort
 
 
 def wiff(payload: bytes, *, surface_type: str = "application/octet-stream") -> WiffReceipt:
@@ -21,6 +23,59 @@ def swirl(payload: bytes) -> bytes:
     cryptographic adapter; this function deliberately does not invent crypto.
     """
     return bytes(payload)
+
+
+def quarantine(
+    payload: bytes,
+    storage: StoragePort,
+    *,
+    surface_type: str = "application/octet-stream",
+) -> QuarantineReceipt:
+    """Ask the host where to quarantine one ingestion event.
+
+    Somolier computes content identity, but the host supplies event identity
+    (B32KID) and storage location through StoragePort.allocate().
+    """
+
+    source_digest = sha256(payload).hexdigest()
+    wr = wiff(payload, surface_type=surface_type)
+    metadata = {
+        "source_digest": source_digest,
+        "size_bytes": wr.size_bytes,
+        "surface_type": wr.surface_type,
+        "flags": list(wr.flags),
+    }
+    allocation = storage.allocate(
+        source_digest=source_digest,
+        metadata=metadata,
+    )
+
+    artifacts = []
+    artifacts.append(storage.write(allocation, "original.bin", payload))
+    artifacts.append(
+        storage.write(
+            allocation,
+            "source.sha256",
+            (source_digest + "\n").encode("ascii"),
+        )
+    )
+    artifacts.append(
+        storage.write(
+            allocation,
+            "wiff.json",
+            (
+                json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+                + "\n"
+            ).encode("utf-8"),
+        )
+    )
+    artifacts.append(storage.write(allocation, "sealed.bin", swirl(payload)))
+
+    return QuarantineReceipt(
+        allocation=allocation,
+        source_digest=source_digest,
+        artifacts=tuple(artifacts),
+    )
 
 
 @dataclass
