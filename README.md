@@ -16,7 +16,7 @@ Its canonical ritual is:
                  STREAM
           \___________/
                 |
-          CALLER RECEIPT
+          CALLER RECEIPT (.b32k)
 
 ## WIFF: the nose
 
@@ -32,52 +32,31 @@ ASCII:
 
     B32KV001
 
-Stock WIFF therefore requires both:
+## Caller receipt format
 
-    extension == ".b32k"
-    first 8 bytes == B32KV001
+Every completed handling attempt returns its receipt in .b32k format.
 
-A renamed or malformed file is SPIT before identity issuance.
+The wire form is:
 
-    WIFF FAIL -> no B32KID -> CALLER RECEIPT
+    B32KV001 + canonical UTF-8 JSON body
 
-## SWIRL
+The JSON body is deterministic: keys are sorted and compact separators are
+used. It contains receipt kind, version, source name, stage, disposition,
+reason, available identities, streamed artifact locations, and flags.
 
-SWIRL is the sealing boundary.
+A WIFF rejection still produces a valid .b32k receipt, but its b32kid field is
+null because the rejected input itself was never named.
 
-## TASTE
+Stored SWALLOW receipts are written as:
 
-TASTE qualifies a sealed specimen for the next stage.
+    receipt.b32k
 
-## DECIDE
-
-DECIDE is the fail-closed admission stage.
-
-A specimen that reaches DECIDE receives exactly one disposition:
-
-    SPIT
-    SWALLOW
-
-## Caller receipt
-
-Every completed handling attempt returns a canonical receipt to the original
-caller.
-
-A WIFF rejection returns disposition/reason/flags but no B32KID.
-
-A specimen that reaches DECIDE returns its available identity and decision
-information with the SPIT/SWALLOW result.
-
-After SWALLOW and STREAM, the receipt also carries the host-returned artifact
-locations.
-
-This return receipt is not persistence: SPIT still allocates no host storage by
-default.
+No receipt.json file is part of the canonical output.
 
 ## HOST and STREAM
 
-    SPIT    -> no allocation, no STREAM -> CALLER RECEIPT
-    SWALLOW -> host allocation -> STREAM -> CALLER RECEIPT
+    SPIT    -> no allocation, no STREAM -> .b32k CALLER RECEIPT
+    SWALLOW -> host allocation -> STREAM -> .b32k CALLER RECEIPT
 
 STREAM is the canonical file-output verb.
 
