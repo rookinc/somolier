@@ -1,47 +1,30 @@
-# Host Storage Port and B32KID
+# Host Storage and STREAM Port
 
-Somolier does not choose quarantine paths.
+Host storage is a Somolier integration boundary, not a B32K identity authority.
 
-Every WIFF deterministically mints a valid B32KID from the exact incoming
-bytes:
+## Ownership
 
-    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
+Somolier owns protocol identity, canonical data/receipt semantics, and the STREAM verb.
 
-The host StoragePort receives that B32KID and chooses only placement:
+The host owns placement, storage technology, retention policy outside Somolier core, and opaque location/handle format.
 
-    WIFF(input) -> B32KID
-    allocate(B32KID, source_digest, metadata)
-        -> QuarantineAllocation(B32KID, location)
+## Placement law
 
-A storage adapter MUST preserve the supplied B32KID.
+Final subject placement occurs only after DECIDE returns SWALLOW.
 
-## Storage verbs
+    SPIT    -> no final subject allocation by default
+    SWALLOW -> allocate(...) -> STREAM(...)
 
-The canonical file-output verb is STREAM:
+The host MUST NOT rewrite a Somolier/B32K identity supplied with the admitted object.
 
-    stream(allocation, artifact_name, payload) -> location
+## Interface
 
-STREAM means Somolier emits an artifact into host-owned storage. It does not
-imply a particular filesystem API, transport, buffering strategy, database, or
-object store.
+    allocate(identity, metadata) -> opaque location
+    stream(allocation, artifact_name, bytes) -> opaque artifact location
+    read(...) -> bytes
 
-READ is the inverse retrieval verb used by the current reference adapter.
+No filesystem path is hardcoded into the core protocol.
 
-## Identity rule
+## B32K note
 
-    B32KID = deterministic WIFF identity
-    location = host-owned placement
-
-Therefore the same exact bytes produce the same B32KID regardless of which
-host, filesystem, object store, or quarantine service receives them.
-
-## Artifacts
-
-The reference quarantine step streams:
-
-    original.bin
-    source.sha256
-    wiff.json
-    sealed.bin
-
-The returned location remains opaque to Somolier.
+Storage bytes must preserve the canonical/admitted representation chosen by the enabled profile. Host placement does not participate in N(x), payload digest, B32K handle, packet_id, or B32KID derivation unless an explicit profile says otherwise.
