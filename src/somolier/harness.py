@@ -5,7 +5,12 @@ from hashlib import sha256
 from typing import Any, Mapping, Protocol
 
 from .decider import RegisteredDecider, UnregisteredDecider
-from .model import DecisionReceipt, TasteReceipt, WiffReceipt
+from .model import (
+    DecisionReceipt,
+    DependencyState,
+    TasteReceipt,
+    WiffReceipt,
+)
 from .pipeline import Somolier, swirl, wiff
 
 
@@ -46,6 +51,7 @@ class HarnessResult:
                 "authority": self.decision.authority,
                 "passed_gates": list(self.decision.passed_gates),
                 "failed_gates": list(self.decision.failed_gates),
+                "unavailable_ports": list(self.decision.unavailable_ports),
                 "reason": self.decision.reason,
             },
             "roundtrip_ok": self.roundtrip_ok,
@@ -63,6 +69,7 @@ def run_case(
     somolier: Somolier | None = None,
     decider: HarnessDecider | None = None,
     gate_results: Mapping[str, bool] | None = None,
+    port_results: Mapping[str, DependencyState | str] | None = None,
 ) -> HarnessResult:
     """Run one deterministic Somolier harness case.
 
@@ -88,7 +95,11 @@ def run_case(
 
     chosen = decider or UnregisteredDecider()
     if isinstance(chosen, RegisteredDecider):
-        decision = chosen.decide(tr1, gate_results=dict(gate_results or {}))
+        decision = chosen.decide(
+            tr1,
+            gate_results=dict(gate_results or {}),
+            port_results=dict(port_results or {}),
+        )
     else:
         decision = chosen.decide(tr1)
 
