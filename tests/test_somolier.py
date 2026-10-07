@@ -4,7 +4,7 @@ from somolier import (
     B32KBackend,
     B32KID,
     B32KPacket,
-    DecisionReceipt,
+    B32K_V1_MAGIC,
     DependencyState,
     Disposition,
     RegisteredDecider,
@@ -17,21 +17,32 @@ from somolier import (
 )
 
 
-def _approved(payload=b"wine", name="wine.b32k"):
+def _file(body=b"wine"):
+    return B32K_V1_MAGIC + body
+
+
+def _approved(body=b"wine", name="wine.b32k"):
+    payload = _file(body)
     wr = wiff(payload, source_name=name)
     assert wr.accepted
-    return wr, swirl(payload, wr)
+    return payload, wr, swirl(payload, wr)
 
 
-def test_stock_wiff_accepts_only_b32k():
-    assert wiff(b"x", source_name="x.b32k").accepted
-    rejected = wiff(b"x", source_name="x.json")
-    assert not rejected.accepted
-    assert "unsupported_file_type" in rejected.flags
+def test_stock_wiff_accepts_only_b32k_with_v1_raw_header():
+    assert B32K_V1_MAGIC == bytes.fromhex("42 33 32 4B 56 30 30 31")
+    assert wiff(_file(b"x"), source_name="x.b32k").accepted
+
+    wrong_type = wiff(_file(b"x"), source_name="x.json")
+    assert not wrong_type.accepted
+    assert "unsupported_file_type" in wrong_type.flags
+
+    bad_header = wiff(b"NOTB32K!" + b"x", source_name="x.b32k")
+    assert not bad_header.accepted
+    assert "invalid_file_header" in bad_header.flags
 
 
 def test_wiff_rejection_returns_caller_receipt_without_id():
-    wr = wiff(b"x", source_name="x.json")
+    wr = wiff(b"garbage", source_name="x.b32k")
     receipt = caller_receipt(wr)
     assert receipt.stage is Stage.WIFF
     assert receipt.disposition is Disposition.SPIT
@@ -39,9 +50,10 @@ def test_wiff_rejection_returns_caller_receipt_without_id():
 
 
 def test_swirl_issues_b32kid_only_after_wiff_pass():
-    wr, sr = _approved()
+    payload, wr, sr = _approved()
     assert isinstance(sr.b32kid, B32KID)
     assert str(sr.b32kid).startswith("b32kid:sha256:")
+
     bad = wiff(b"x", source_name="x.txt")
     with pytest.raises(ValueError, match="passing WIFF"):
         swirl(b"x", bad)
@@ -51,18 +63,19 @@ def test_empty_b32k_fails_wiff():
     receipt = wiff(b"", source_name="empty.b32k")
     assert not receipt.accepted
     assert "empty_payload" in receipt.flags
+    assert "invalid_file_header" in receipt.flags
 
 
 def test_b32k_round_trip_uses_swirl_id():
-    wr, sr = _approved()
+    payload, wr, sr = _approved()
     som = Somolier(B32KBackend())
     receipt = som.taste(sr)
     assert receipt.packet.b32kid == sr.b32kid
-    assert som.render(receipt) == b"wine"
+    assert som.render(receipt) == payload
 
 
 def test_decider_spit_returns_named_caller_receipt():
-    wr, sr = _approved()
+    payload, wr, sr = _approved()
     tr = Somolier().taste(sr)
     decision = UnregisteredDecider().decide(tr)
     receipt = caller_receipt(wr, decision, swirl_receipt=sr, taste_receipt=tr)
@@ -74,17 +87,17 @@ def test_decider_spit_returns_named_caller_receipt():
 
 def test_b32k_requires_b32kid_at_backend_boundary():
     with pytest.raises(ValueError, match="require a B32KID"):
-        B32KBackend().encode(b"wine")
+        B32KBackend().encode(_file())
 
 
 def test_b32k_validation_accepts_valid_id():
-    wr, sr = _approved(b"abc", "abc.b32k")
+    payload, wr, sr = _approved(b"abc", "abc.b32k")
     packet = B32KPacket(b32kid=sr.b32kid, words=(1, 2, 3))
     assert B32KBackend().validate(packet)
 
 
 def test_registered_decider_fails_closed_when_required_port_disconnected():
-    wr, sr = _approved()
+    payload, wr, sr = _approved()
     receipt = Somolier().taste(sr)
     decider = RegisteredDecider(
         authority="test-authority",
