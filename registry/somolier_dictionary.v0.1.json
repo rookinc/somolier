@@ -1,15 +1,30 @@
 {
-  "schema": "somolier.dictionary.v0.1",
-  "title": "Somolier Canonical Dictionary",
-  "native_packet_backend": "b32k",
-  "flow": ["WIFF", "SWIRL", "TASTE", "DECIDER", "SPIT|SWALLOW"],
+  "schema": "somolier.profile.registry.v0.2",
+  "title": "Somolier B32K Profile Registry",
+  "status": "profile-draft",
+  "b32k_target": {
+    "reference": "B32K-1.1.0-stable-draft",
+    "source_note": "Supplied artifact closing metadata says 1.1.0 Stable Draft; cover says v1.0.0. Upstream ambiguity remains recorded."
+  },
+  "profile_extensions": {
+    "filename_suffix": ".b32k",
+    "outer_magic": "B32KV001",
+    "outer_magic_status": "somolier-profile-convention",
+    "flow": ["WIFF", "SWIRL", "TASTE", "DECIDE", "SPIT|SWALLOW"],
+    "file_output_verb": "STREAM",
+    "b32kid_status": "somolier-profile-extension-derived-from-b32k-handle"
+  },
   "terms": {
-    "WIFF": {"kind": "stage", "definition": "pre-quarantine wrapper inspection and file fingerprint"},
-    "SWIRL": {"kind": "stage", "definition": "quarantine sealing boundary"},
-    "TASTE": {"kind": "stage", "definition": "Somolier normalization and packetization pass"},
-    "DECIDER": {"kind": "port", "definition": "external admission authority; unregistered defaults to SPIT"},
-    "SPIT": {"kind": "disposition", "definition": "reject admission while preserving evidence and receipt"},
-    "SWALLOW": {"kind": "disposition", "definition": "admit only when every required Decider gate passes"},
-    "B32K": {"kind": "backend", "definition": "default packet backend shipped with Somolier"}
+    "WIFF": {"class": "somolier_stage", "definition": "recognize/sniff without executing or issuing subject identity"},
+    "SWIRL": {"class": "somolier_stage", "definition": "isolation/sealing boundary"},
+    "TASTE": {"class": "somolier_stage", "definition": "validate and qualify; establish subject genesis identity on PASS"},
+    "DECIDE": {"class": "somolier_stage", "definition": "fail-closed admission decision"},
+    "SPIT": {"class": "somolier_disposition", "definition": "reject admission; no subject persistence by default"},
+    "SWALLOW": {"class": "somolier_disposition", "definition": "admit to final build/compute, placement and STREAM"},
+    "STREAM": {"class": "somolier_verb", "definition": "emit admitted file bytes to host-owned placement"},
+    "B32KID": {"class": "somolier_identity", "definition": "profile-versioned object label derived from a normative B32K handle"},
+    "handle": {"class": "b32k_normative", "definition": "BLAKE3 domain-separated digest binding canonical payload to version/lane context"},
+    "packet_id": {"class": "b32k_normative", "definition": "HTTPQ UUIDv7 envelope identifier"},
+    "O-1 receipt": {"class": "b32k_normative", "definition": "ledger inclusion proof defined by B32K Appendix C"}
   }
 }
