@@ -18,6 +18,8 @@ from .model import (
     WiffReceipt,
 )
 from .pipeline import (
+    B32K_V1_MAGIC,
+    DEFAULT_FILE_HEADERS,
     DEFAULT_VALID_FILE_TYPES,
     Somolier,
     caller_receipt,
@@ -50,6 +52,8 @@ __all__ = [
     "SwirlReceipt",
     "TasteReceipt",
     "WiffReceipt",
+    "B32K_V1_MAGIC",
+    "DEFAULT_FILE_HEADERS",
     "DEFAULT_VALID_FILE_TYPES",
     "Somolier",
     "caller_receipt",
