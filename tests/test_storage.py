@@ -26,6 +26,22 @@ def test_wiff_supplies_b32kid_host_supplies_only_location():
     assert host.read(receipt.allocation, "sealed.bin") == payload
 
 
+def test_storage_output_verb_is_stream():
+    payload = b"stream-me"
+    wr = wiff(payload)
+    host = FixedMemoryStoragePort(location="memory://q/stream")
+    allocation = host.allocate(
+        b32kid=wr.b32kid,
+        source_digest=sha256(payload).hexdigest(),
+        metadata={},
+    )
+
+    location = host.stream(allocation, "artifact.bin", payload)
+
+    assert location.endswith("/artifact.bin")
+    assert host.read(allocation, "artifact.bin") == payload
+
+
 def test_quarantine_b32kid_flows_into_b32k_packet():
     payload = b"wine"
     packet_id = wiff(payload).b32kid
