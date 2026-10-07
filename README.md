@@ -14,49 +14,46 @@ Its canonical ritual is:
                  HOST
                    |
                  STREAM
+          \___________/
+                |
+          CALLER RECEIPT
 
 ## WIFF: the nose / lips
 
-WIFF has an explicit valid-file-type list.
-
-The stock Somolier distribution ships with exactly:
+The stock valid-file-type list contains exactly:
 
     .b32k
 
-and nothing else.
+A non-.b32k file is SPIT before identity issuance.
 
-A non-.b32k file fails WIFF under the stock configuration. It is SPIT before
-identity issuance.
-
-    WIFF FAIL -> SPIT -> no B32KID
-
-The list is configuration, so deployments may explicitly add types without
-changing the deterministic algorithm.
+    WIFF FAIL -> no B32KID -> CALLER RECEIPT
 
 ## SWIRL: identity issuance
 
-Passing the lips earns entry to SWIRL. SWIRL seals the specimen and issues its
-B32KID.
-
     WIFF PASS -> SWIRL(B32KID)
 
-The reference B32KID is deterministic:
+Every B32K packet carries this SWIRL-issued B32KID.
 
-    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
+## Caller receipt
 
-Every B32K packet must carry this SWIRL-issued B32KID.
+Every completed handling attempt returns a canonical receipt to the original
+caller.
 
-## TASTE and DECIDER
+A WIFF rejection returns disposition/reason/flags but no B32KID.
 
-TASTE normalizes/packetizes the named specimen. DECIDER returns SPIT or
-SWALLOW and remains fail-closed.
+A specimen that reaches the Decider returns its B32KID and canonical content ID
+with the SPIT/SWALLOW result.
+
+After SWALLOW and STREAM, the receipt also carries the host-returned artifact
+locations.
+
+This return receipt is not persistence: SPIT still allocates no host storage by
+default.
 
 ## HOST and STREAM
 
-Host placement occurs only after SWALLOW by default.
-
-    SPIT    -> no allocation, no file persistence
-    SWALLOW -> host allocation -> STREAM
+    SPIT    -> no allocation, no STREAM -> CALLER RECEIPT
+    SWALLOW -> host allocation -> STREAM -> CALLER RECEIPT
 
 STREAM is the canonical file-output verb.
 
@@ -66,14 +63,10 @@ STREAM is the canonical file-output verb.
     pytest -q
     somolier-harness tests/fixtures
 
-The harness treats rejected non-.b32k fixtures as successful fail-closed test
-cases: they must receive no B32KID and no TASTE receipt.
-
 ## Status
 
 Early reference implementation. B32K is the sole shipped WIFF file type and
-the default packet backend. Production cryptographic SWIRL adapters remain
-separate work.
+the default packet backend.
 
 ## License
 
