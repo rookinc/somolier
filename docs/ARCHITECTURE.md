@@ -5,6 +5,8 @@
        WIFF      the nose/lips gate
         |
       SPIT <-----+ failed type/admissibility
+        |               |
+        |          CALLER RECEIPT
         |
       PASS
         |
@@ -12,52 +14,51 @@
         |
       TASTE      deterministic normalization / packetization
         |
-     Decider     external configured gates and dependency states
+     Decider
        / \
     SPIT SWALLOW
-             |
-          StoragePort
-             |
-           STREAM
+     |       |
+     |    StoragePort
+     |       |
+     |     STREAM
+     |       |
+     +-------+
+        |
+   CALLER RECEIPT
+
+## Caller return law
+
+Every completed handling attempt returns a receipt to the original caller.
+
+WIFF rejection returns a receipt with no B32KID because the object never passed
+the lips.
+
+A named object that reaches the Decider returns a receipt carrying its B32KID,
+canonical content ID when available, disposition, and reason.
+
+After SWALLOW + STREAM, the caller receipt may also carry the host-returned
+artifact locations.
+
+    WIFF FAIL -> caller receipt, no B32KID
+    DECIDER SPIT -> caller receipt + B32KID, no STREAM
+    SWALLOW -> STREAM -> caller receipt + B32KID + streamed locations
+
+The caller receipt is Somolier's canonical return value; it does not require a
+persistent host record.
 
 ## WIFF / the nose
 
-WIFF owns a configured list of valid file types. The stock distribution ships
-with exactly one valid type:
+The stock distribution recognizes only:
 
     .b32k
 
-A file that does not pass WIFF gets no B32KID and does not proceed to SWIRL.
-
-The valid type list is configuration, so a host may deliberately extend it,
-but the shipped default remains .b32k only.
+A file that does not pass WIFF gets no B32KID.
 
 ## SWIRL identity boundary
 
-B32KID issuance occurs in SWIRL, never WIFF.
-
     WIFF PASS -> SWIRL -> B32KID
-
-With the current deterministic reference implementation:
-
-    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
 ## Persistence boundary
 
-Host placement is after the Decider. Default behavior is:
-
     SPIT    -> no allocation, no STREAM
     SWALLOW -> host allocation -> STREAM
-
-Somolier therefore does not persist material it has already rejected unless a
-future explicit retention policy says otherwise.
-
-## Deterministic service law
-
-For fixed bytes, valid-file-type configuration, dependency state, and Decider
-inputs, Somolier follows the same algorithm and produces the same receipts.
-
-## Packet backend
-
-B32K is bundled and configured by default. Every B32K packet carries the
-B32KID issued by SWIRL.
