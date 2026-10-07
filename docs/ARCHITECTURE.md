@@ -2,9 +2,9 @@
 
     incoming object
         |
-       WIFF      the nose/lips gate
+       WIFF      nose: type + raw-byte header
         |
-      SPIT <-----+ failed type/admissibility
+      SPIT <-----+ failed recognition
         |               |
         |          CALLER RECEIPT
         |
@@ -26,37 +26,31 @@
         |
    CALLER RECEIPT
 
-## Caller return law
-
-Every completed handling attempt returns a receipt to the original caller.
-
-WIFF rejection returns a receipt with no B32KID because the object never passed
-the lips.
-
-A named object that reaches the Decider returns a receipt carrying its B32KID,
-canonical content ID when available, disposition, and reason.
-
-After SWALLOW + STREAM, the caller receipt may also carry the host-returned
-artifact locations.
-
-    WIFF FAIL -> caller receipt, no B32KID
-    DECIDER SPIT -> caller receipt + B32KID, no STREAM
-    SWALLOW -> STREAM -> caller receipt + B32KID + streamed locations
-
-The caller receipt is Somolier's canonical return value; it does not require a
-persistent host record.
-
 ## WIFF / the nose
 
-The stock distribution recognizes only:
+The shipped valid type registry contains one entry:
 
-    .b32k
+    extension: .b32k
+    raw magic: 42 33 32 4B 56 30 30 31
+    ASCII:     B32KV001
 
-A file that does not pass WIFF gets no B32KID.
+A stock WIFF passes only when the extension is .b32k and the first eight bytes
+match B32KV001.
+
+A file that merely has a .b32k suffix but the wrong raw header is rejected with
+invalid_file_header and gets no B32KID.
 
 ## SWIRL identity boundary
 
     WIFF PASS -> SWIRL -> B32KID
+
+## Caller return law
+
+Every completed handling attempt returns a receipt to the original caller.
+
+    WIFF FAIL -> caller receipt, no B32KID
+    DECIDER SPIT -> caller receipt + B32KID, no STREAM
+    SWALLOW -> STREAM -> caller receipt + B32KID + streamed locations
 
 ## Persistence boundary
 
