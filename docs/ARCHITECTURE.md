@@ -4,7 +4,9 @@
         |
        WIFF      cheap wrapper sniff
         |
-     quarantine
+   StoragePort   host returns B32KID + quarantine location
+        |
+     quarantine  original evidence stored under host allocation
         |
       SWIRL      sealing boundary
         |
@@ -18,13 +20,32 @@
 
 Somolier is a one-in / one-out deterministic transducer.
 
-For fixed input bytes, fixed configuration, and fixed reported dependency
-states, the output is fixed:
+For fixed input bytes, fixed configuration, fixed reported dependency states,
+and the same host-provided allocation, the output is fixed:
 
-    same input + same config + same dependency state = same output
+    same input + same config + same dependency state + same host allocation
+        = same output
 
 The algorithm does not adapt itself to ambient context. Variability belongs in
-explicit configuration data and explicit port-state inputs.
+explicit configuration, explicit port-state inputs, and explicit host port
+responses.
+
+## Quarantine identity and placement
+
+Somolier computes SHA-256 content identity but does not choose a quarantine
+path and does not mint random event IDs.
+
+The host StoragePort returns:
+
+    B32KID   ingestion-event identity
+    location opaque host storage handle
+
+Thus:
+
+    SHA-256 = what bytes?
+    B32KID  = which ingestion event?
+
+See HOST_STORAGE_PORT.md.
 
 ## Responsibility split
 
