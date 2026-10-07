@@ -9,7 +9,7 @@ class Stage(str, Enum):
     WIFF = "WIFF"
     SWIRL = "SWIRL"
     TASTE = "TASTE"
-    DECIDER = "DECIDER"
+    DECIDE = "DECIDE"
     SPIT = "SPIT"
     SWALLOW = "SWALLOW"
 
