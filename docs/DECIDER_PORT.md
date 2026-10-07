@@ -1,35 +1,25 @@
-# Decider Port
+# DECIDE Policy Port
 
-The Decider consumes a TasteReceipt plus explicit configuration inputs and
-produces exactly one disposition receipt.
+DECIDE is the canonical Somolier admission verb and stage.
 
-    TasteReceipt + authority + gate results + port results -> SPIT | SWALLOW
+A configured decision policy consumes TASTE evidence plus explicit authority, gate, and dependency inputs and returns exactly one disposition:
+
+    SPIT | SWALLOW
 
 ## Fail-closed law
 
     unregistered authority -> SPIT
     missing required port  -> SPIT
-    disconnected port      -> SPIT
-    failed port            -> SPIT
+    DISCONNECTED port      -> SPIT
+    FAILED port            -> SPIT
     missing gate           -> SPIT
     failed gate            -> SPIT
-    all ports READY
-      + all gates PASS      -> SWALLOW
+    all required evidence  -> SWALLOW
 
-Registration does not make a Decider permissive. It only supplies a lawful
-authority context in which SWALLOW can be earned.
+No missing value is interpreted as permission.
 
-## Connectivity state
+## B32K boundary
 
-Required dependencies are explicit configuration. Each required port is in one
-of three states:
+DECIDE does not redefine B32K validity. TASTE supplies B32K/profile validation evidence. DECIDE applies admission policy to that evidence.
 
-    READY
-    DISCONNECTED
-    FAILED
-
-Anything except READY is fail-closed. Missing required port status is treated
-as DISCONNECTED.
-
-This is dependency-state awareness, not inference: the caller reports the
-state of configured ports and Somolier deterministically receipts it.
+SWALLOW authorizes the next stage to build/compute the admitted representation and request persistence. DECIDE itself does not STREAM.
