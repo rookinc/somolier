@@ -83,6 +83,20 @@ class QuarantineReceipt:
 
 
 @dataclass(frozen=True)
+class CallerReceipt:
+    """Canonical response returned to the original caller."""
+
+    source_name: str
+    stage: Stage
+    disposition: Disposition
+    reason: str
+    b32kid: B32KID | None = None
+    canonical_id: str | None = None
+    streamed_artifacts: Tuple[str, ...] = ()
+    flags: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class PortStatus:
     name: str
     state: DependencyState
