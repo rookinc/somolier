@@ -2,6 +2,8 @@ import pytest
 
 from somolier import (
     B32KBackend,
+    B32KID,
+    B32KPacket,
     DependencyState,
     Disposition,
     RegisteredDecider,
@@ -14,10 +16,31 @@ from somolier import (
 
 def test_b32k_round_trip():
     payload = b"wine"
+    packet_id = B32KID("b32kid:test-round-trip")
     som = Somolier(B32KBackend())
-    receipt = som.taste(payload)
+    receipt = som.taste(payload, b32kid=packet_id)
     assert receipt.backend == "b32k"
+    assert receipt.packet.b32kid == packet_id
     assert som.render(receipt) == payload
+
+
+def test_b32k_requires_b32kid():
+    with pytest.raises(ValueError, match="require a B32KID"):
+        B32KBackend().encode(b"wine")
+
+
+def test_b32k_validation_rejects_packet_without_valid_id_shape():
+    packet_id = B32KID("b32kid:test-validation")
+    packet = B32KPacket(b32kid=packet_id, words=(1, 2, 3))
+    assert B32KBackend().validate(packet)
+
+
+def test_b32kid_does_not_change_content_canonical_id():
+    backend = B32KBackend()
+    left = backend.encode(b"same", b32kid=B32KID("b32kid:event-left"))
+    right = backend.encode(b"same", b32kid=B32KID("b32kid:event-right"))
+    assert left.b32kid != right.b32kid
+    assert backend.canonical_id(left) == backend.canonical_id(right)
 
 
 def test_wiff_does_not_reject_empty_but_flags_it():
@@ -31,13 +54,19 @@ def test_swirl_placeholder_preserves_bytes():
 
 
 def test_unregistered_decider_hates_everything():
-    receipt = Somolier().taste(b"anything")
+    receipt = Somolier().taste(
+        b"anything",
+        b32kid=B32KID("b32kid:test-unregistered"),
+    )
     decision = UnregisteredDecider().decide(receipt)
     assert decision.disposition is Disposition.SPIT
 
 
 def test_registered_decider_requires_all_gates():
-    receipt = Somolier().taste(b"wine")
+    receipt = Somolier().taste(
+        b"wine",
+        b32kid=B32KID("b32kid:test-gates"),
+    )
     decider = RegisteredDecider(
         authority="test-authority",
         required_gates=("integrity", "policy"),
@@ -53,7 +82,10 @@ def test_registered_decider_requires_all_gates():
 
 
 def test_registered_decider_fails_closed_when_required_port_disconnected():
-    receipt = Somolier().taste(b"wine")
+    receipt = Somolier().taste(
+        b"wine",
+        b32kid=B32KID("b32kid:test-ports"),
+    )
     decider = RegisteredDecider(
         authority="test-authority",
         required_gates=("integrity",),
@@ -72,7 +104,10 @@ def test_registered_decider_fails_closed_when_required_port_disconnected():
 
 
 def test_missing_required_port_is_disconnected_and_spits():
-    receipt = Somolier().taste(b"wine")
+    receipt = Somolier().taste(
+        b"wine",
+        b32kid=B32KID("b32kid:test-missing-port"),
+    )
     decider = RegisteredDecider(
         authority="test-authority",
         required_gates=(),
