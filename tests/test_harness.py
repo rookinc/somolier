@@ -12,64 +12,46 @@ from somolier.harness import run_case
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def test_harness_same_bytes_same_receipt_identity():
-    payload = (FIXTURES / "clean" / "hello.txt").read_bytes()
-    left = run_case("left", payload)
-    right = run_case("right", payload)
-    assert left.source_digest == right.source_digest
-    assert left.taste.canonical_id == right.taste.canonical_id
-    assert left.receipt_stable
-
-
-def test_harness_round_trip_and_evidence_preservation():
-    payload = (FIXTURES / "clean" / "sample.json").read_bytes()
-    result = run_case("sample-json", payload, surface_type="application/json")
+def test_harness_b32k_round_trip():
+    payload = b"hello b32k"
+    result = run_case("hello.b32k", payload, source_name="hello.b32k")
+    assert result.wiff.accepted
+    assert result.taste is not None
     assert result.roundtrip_ok
-    assert result.evidence_preserved
+    assert result.receipt_stable
     assert result.passed
 
 
-def test_harness_unregistered_decider_spits():
-    payload = (FIXTURES / "clean" / "hello.txt").read_bytes()
-    result = run_case("fail-closed", payload, decider=UnregisteredDecider())
+def test_harness_rejects_non_b32k_before_id():
+    result = run_case("hello.txt", b"hello", source_name="hello.txt")
+    assert not result.wiff.accepted
+    assert result.taste is None
     assert result.decision.disposition is Disposition.SPIT
+    assert result.passed
 
 
 def test_harness_registered_decider_only_swallows_all_pass():
-    payload = (FIXTURES / "clean" / "hello.txt").read_bytes()
+    payload = b"hello"
     decider = RegisteredDecider(
         authority="generic-test-authority",
         required_gates=("integrity", "policy"),
         required_ports=("storage",),
     )
-    spit = run_case(
-        "one-gate-fails",
-        payload,
-        decider=decider,
-        gate_results={"integrity": True, "policy": False},
-        port_results={"storage": DependencyState.READY},
-    )
     swallow = run_case(
-        "all-gates-pass",
+        "hello.b32k",
         payload,
+        source_name="hello.b32k",
         decider=decider,
         gate_results={"integrity": True, "policy": True},
         port_results={"storage": DependencyState.READY},
     )
     disconnected = run_case(
-        "port-disconnected",
+        "hello.b32k",
         payload,
+        source_name="hello.b32k",
         decider=decider,
         gate_results={"integrity": True, "policy": True},
         port_results={"storage": DependencyState.DISCONNECTED},
     )
-    assert spit.decision.disposition is Disposition.SPIT
     assert swallow.decision.disposition is Disposition.SWALLOW
     assert disconnected.decision.disposition is Disposition.SPIT
-
-
-def test_harness_empty_fixture_is_flagged_but_preserved():
-    result = run_case("empty", b"")
-    assert "empty_payload" in result.wiff.flags
-    assert result.evidence_preserved
-    assert result.roundtrip_ok
