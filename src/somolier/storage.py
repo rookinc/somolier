@@ -8,10 +8,9 @@ from .model import B32KID, QuarantineAllocation
 
 @runtime_checkable
 class StoragePort(Protocol):
-    """Host-provided quarantine storage interface.
+    """Host-provided quarantine placement interface.
 
-    Somolier never chooses a filesystem path. The host returns an opaque
-    B32KID and location/handle for this ingestion event.
+    WIFF already minted the B32KID. The host chooses only the location/handle.
     """
 
     name: str
@@ -19,6 +18,7 @@ class StoragePort(Protocol):
     def allocate(
         self,
         *,
+        b32kid: B32KID,
         source_digest: str,
         metadata: Mapping[str, Any],
     ) -> QuarantineAllocation:
@@ -42,32 +42,30 @@ class StoragePort(Protocol):
 
 @dataclass
 class FixedMemoryStoragePort:
-    """Deterministic one-event storage adapter for tests/examples.
+    """Deterministic one-event storage adapter for tests/examples."""
 
-    The host supplies both the B32KID and location. No random or ambient event
-    identity is generated inside Somolier.
-    """
-
-    b32kid: B32KID
     location: str
     name: str = "memory"
+    _b32kid: B32KID | None = None
     _source_digest: str | None = None
     _artifacts: Dict[str, bytes] = field(default_factory=dict)
 
     def allocate(
         self,
         *,
+        b32kid: B32KID,
         source_digest: str,
         metadata: Mapping[str, Any],
     ) -> QuarantineAllocation:
         if self._source_digest is None:
             self._source_digest = source_digest
-        elif self._source_digest != source_digest:
+            self._b32kid = b32kid
+        elif self._source_digest != source_digest or self._b32kid != b32kid:
             raise ValueError(
-                "FixedMemoryStoragePort is bound to one ingestion event"
+                "FixedMemoryStoragePort is bound to one ingestion identity"
             )
         return QuarantineAllocation(
-            b32kid=self.b32kid,
+            b32kid=b32kid,
             location=self.location,
         )
 
@@ -95,5 +93,5 @@ class FixedMemoryStoragePort:
         return tuple(sorted(self._artifacts))
 
     def _require_allocation(self, allocation: QuarantineAllocation) -> None:
-        if allocation.b32kid != self.b32kid or allocation.location != self.location:
+        if allocation.b32kid != self._b32kid or allocation.location != self.location:
             raise ValueError("allocation does not belong to this storage port")
