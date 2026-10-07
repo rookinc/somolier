@@ -14,16 +14,23 @@ def main() -> None:
 
     payload = args.path.read_bytes()
     print("[1/4] WIFF")
-    wr = wiff(payload)
-    print(f"      size={wr.size_bytes} flags={list(wr.flags)}")
+    wr = wiff(payload, source_name=args.path.name)
+    print(
+        f"      accepted={wr.accepted} ext={wr.extension} "
+        f"valid={list(wr.valid_file_types)} flags={list(wr.flags)}"
+    )
+    if not wr.accepted:
+        print("[SPIT] rejected at WIFF; no B32KID issued")
+        raise SystemExit(1)
 
     print("[2/4] SWIRL")
-    sealed = swirl(payload)
+    sr = swirl(payload, wr)
+    print(f"      b32kid={sr.b32kid}")
 
     print("[3/4] TASTE")
     som = Somolier()
-    tr = som.taste(sealed)
-    print(f"      backend={tr.backend} id={tr.canonical_id}")
+    tr = som.taste(sr)
+    print(f"      backend={tr.backend} content_id={tr.canonical_id}")
 
     print("[4/4] DECIDER")
     decision = UnregisteredDecider().decide(tr)
