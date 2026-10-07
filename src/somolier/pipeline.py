@@ -10,9 +10,11 @@ from .backend import PacketBackend
 from .backends.b32k import B32KBackend
 from .model import (
     B32KID,
+    CallerReceipt,
     DecisionReceipt,
     Disposition,
     QuarantineReceipt,
+    Stage,
     SwirlReceipt,
     TasteReceipt,
     WiffReceipt,
@@ -43,11 +45,7 @@ def wiff(
     surface_type: str = "application/octet-stream",
     valid_file_types: Iterable[str] = DEFAULT_VALID_FILE_TYPES,
 ) -> WiffReceipt:
-    """The nose/lips gate.
-
-    WIFF recognizes only explicitly configured file types. The stock Somolier
-    configuration ships with .b32k and nothing else. WIFF does not issue IDs.
-    """
+    """The nose/lips gate. WIFF does not issue IDs."""
 
     allowed = _normalize_types(valid_file_types)
     extension = Path(source_name).suffix.lower()
@@ -69,10 +67,7 @@ def wiff(
 
 
 def swirl(payload: bytes, wiff_receipt: WiffReceipt) -> SwirlReceipt:
-    """Seal a WIFF-approved specimen and issue its B32KID.
-
-    Anything that did not pass WIFF never receives a B32KID.
-    """
+    """Seal a WIFF-approved specimen and issue its B32KID."""
 
     if not wiff_receipt.accepted:
         raise ValueError("SWIRL requires a passing WIFF receipt")
@@ -84,16 +79,57 @@ def swirl(payload: bytes, wiff_receipt: WiffReceipt) -> SwirlReceipt:
     )
 
 
+def caller_receipt(
+    wiff_receipt: WiffReceipt,
+    decision: DecisionReceipt | None = None,
+    *,
+    swirl_receipt: SwirlReceipt | None = None,
+    taste_receipt: TasteReceipt | None = None,
+    stream_receipt: QuarantineReceipt | None = None,
+) -> CallerReceipt:
+    """Build the canonical response for the original caller.
+
+    A WIFF failure is receipted without a B32KID. Later SPIT/SWALLOW responses
+    carry the SWIRL-issued identity. STREAM locations appear only after
+    successful SWALLOW persistence.
+    """
+
+    if not wiff_receipt.accepted:
+        return CallerReceipt(
+            source_name=wiff_receipt.source_name,
+            stage=Stage.WIFF,
+            disposition=Disposition.SPIT,
+            reason="WIFF rejected input before B32KID issuance",
+            flags=wiff_receipt.flags,
+        )
+
+    if swirl_receipt is None:
+        raise ValueError("passing WIFF caller receipt requires SWIRL receipt")
+    if decision is None:
+        raise ValueError("post-WIFF caller receipt requires decision")
+
+    stage = Stage.SWALLOW if decision.disposition is Disposition.SWALLOW else Stage.SPIT
+    return CallerReceipt(
+        source_name=wiff_receipt.source_name,
+        stage=stage,
+        disposition=decision.disposition,
+        reason=decision.reason,
+        b32kid=swirl_receipt.b32kid,
+        canonical_id=taste_receipt.canonical_id if taste_receipt is not None else None,
+        streamed_artifacts=(
+            stream_receipt.artifacts if stream_receipt is not None else ()
+        ),
+        flags=wiff_receipt.flags,
+    )
+
+
 def stream_swallowed(
     swirl_receipt: SwirlReceipt,
     wiff_receipt: WiffReceipt,
     decision: DecisionReceipt,
     storage: StoragePort,
 ) -> QuarantineReceipt:
-    """Persist only an admitted specimen.
-
-    Default Somolier behavior is no host allocation and no STREAM on SPIT.
-    """
+    """Persist only an admitted specimen."""
 
     if decision.disposition is not Disposition.SWALLOW:
         raise ValueError("STREAM requires SWALLOW")
@@ -115,11 +151,7 @@ def stream_swallowed(
         raise ValueError("storage port changed the SWIRL-issued B32KID")
 
     artifacts = (
-        storage.stream(
-            allocation,
-            wiff_receipt.source_name,
-            swirl_receipt.sealed,
-        ),
+        storage.stream(allocation, wiff_receipt.source_name, swirl_receipt.sealed),
         storage.stream(
             allocation,
             "receipt.json",
