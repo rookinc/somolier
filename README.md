@@ -11,69 +11,50 @@ Somolier **describes and normalizes**. The Decider **admits or rejects**.
 
 ## Core promise
 
-    somolier(input, config, dependency_state, host_ports) -> output
+    same input + same config = same WIFF identity
+    same input + same config + same dependency state = same processing result
 
-For the same input, same configuration, same reported dependency state, and
-same explicit host-port responses, Somolier produces the same output.
+There is no permissive disconnected mode: missing, DISCONNECTED, or FAILED
+required dependencies produce SPIT.
 
-There is no permissive disconnected mode:
+## B32KID starts at WIFF
 
-- unregistered Decider -> SPIT
-- missing required dependency -> SPIT
-- DISCONNECTED dependency -> SPIT
-- FAILED dependency -> SPIT
-- missing or failed required gate -> SPIT
-- SWALLOW only when every required port is READY and every required gate passes
+Every WIFF mints a valid B32KID immediately:
 
-## Host storage and B32KID
+    B32KID = "b32kid:sha256:" + SHA256(input_bytes)
 
-Somolier never hardcodes a quarantine path. It asks the host StoragePort where
-to put an ingestion event.
+This is Somolier/B32K identity, not host identity. The same exact bytes produce
+the same B32KID on every host.
 
-The host returns:
+The host StoragePort is asked only where to place the files:
 
-    B32KID   = unique ingestion-event identity
-    location = opaque quarantine location/handle
+    WIFF(bytes) -> B32KID
+    StoragePort.allocate(B32KID, metadata) -> location
 
-Somolier separately computes SHA-256 content identity:
-
-    SHA-256 = what bytes are these?
-    B32KID  = which ingestion event is this?
-
-The same content may therefore have the same SHA-256 and different B32KIDs on
-different ingestion events.
+The host must preserve the supplied B32KID.
 
 ## B32K packet law
 
-Every B32K packet MUST carry a B32KID.
+Every B32K packet MUST carry its WIFF B32KID:
 
-    B32KPacket = (B32KID, words)
+    bytes
+      -> WIFF(B32KID)
+      -> quarantine
+      -> TASTE
+      -> B32KPacket(B32KID, words)
 
-A B32K encoder refuses to create a packet without one. The B32KID follows the
-ingestion event from host quarantine into packetization.
-
-B32KID is event identity, not content identity. Therefore it is deliberately
-excluded from the B32K canonical content hash:
-
-    same bytes + different B32KID -> same canonical content ID
-
-This preserves the distinction between provenance and content.
+The B32K backend refuses packet construction without a B32KID.
 
 ## Native packet backend
 
-Somolier v0.1 ships with **B32K** configured as the default packet backend.
-Other packet backends may define different identity requirements.
+Somolier v0.1 ships with B32K as the default packet backend. Other packet
+backends may define different requirements.
 
 ## King's Taster model
 
-The Somolier persona is the tasting surface. The security office underneath is
-the King's Taster: nothing is consumed until it has earned SWALLOW.
+Nothing is consumed until it has earned SWALLOW.
 
 ## Test harness
-
-Somolier ships a policy-neutral test harness with deterministic receipt checks,
-B32K round-trip checks, B32KID packet checks, evidence-preservation checks,
-fail-closed Decider tests, disconnected-port tests, and host-storage tests.
 
 Run:
 
@@ -81,11 +62,15 @@ Run:
     pytest -q
     somolier-harness tests/fixtures
 
+The harness checks deterministic WIFF/B32KID generation, B32K round trips,
+evidence preservation, fail-closed Decider behavior, disconnected ports, and
+host-independent quarantine identity.
+
 ## Status
 
-Early reference implementation. B32K is the bundled packet backend. Host
-storage is a port, not protocol-owned placement. Production cryptographic
-SWIRL adapters remain separate work.
+Early reference implementation. B32K is bundled. Host storage is a placement
+port, not an identity authority. Production cryptographic SWIRL adapters remain
+separate work.
 
 ## License
 
