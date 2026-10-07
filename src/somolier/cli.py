@@ -32,6 +32,6 @@ def main() -> None:
     tr = som.taste(sr)
     print(f"      backend={tr.backend} content_id={tr.canonical_id}")
 
-    print("[4/4] DECIDER")
+    print("[4/4] DECIDE")
     decision = UnregisteredDecider().decide(tr)
     print(f"      {decision.disposition.value}: {decision.reason}")
