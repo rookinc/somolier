@@ -1,0 +1,17 @@
+{
+  "schema": "somolier.harness.golden.v0.1",
+  "cases": {
+    "clean/hello.txt": {
+      "sha256": "1a8fd9e64f6f25d523c227e699ccccc3863b7d35ca86f2722b483e512cd49fcc",
+      "default_disposition": "SPIT"
+    },
+    "clean/sample.json": {
+      "sha256": "ae993fc89f3ed3e456a5c100cfe3dabecc2411a7b391a82807ab2243067ff817",
+      "default_disposition": "SPIT"
+    },
+    "malformed/broken.json": {
+      "sha256": "ee3bb016ee1b1e395152b5db18af8d7e785aa19a2ab541c9bd9d13dfa8a2a0f0",
+      "default_disposition": "SPIT"
+    }
+  }
+}
