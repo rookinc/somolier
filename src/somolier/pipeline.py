@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .backend import PacketBackend
 from .backends.b32k import B32KBackend
@@ -22,7 +22,11 @@ from .model import (
 from .storage import StoragePort
 
 
+B32K_V1_MAGIC = b"B32KV001"
 DEFAULT_VALID_FILE_TYPES = (".b32k",)
+DEFAULT_FILE_HEADERS: Mapping[str, bytes] = {
+    ".b32k": B32K_V1_MAGIC,
+}
 
 
 def _normalize_types(valid_file_types: Iterable[str]) -> tuple[str, ...]:
@@ -44,16 +48,30 @@ def wiff(
     source_name: str,
     surface_type: str = "application/octet-stream",
     valid_file_types: Iterable[str] = DEFAULT_VALID_FILE_TYPES,
+    file_headers: Mapping[str, bytes] = DEFAULT_FILE_HEADERS,
 ) -> WiffReceipt:
-    """The nose/lips gate. WIFF does not issue IDs."""
+    """The nose gate. WIFF does not issue IDs.
+
+    A recognized file type must also match its configured raw-byte header.
+    The stock distribution knows only .b32k with the B32KV001 header.
+    """
 
     allowed = _normalize_types(valid_file_types)
     extension = Path(source_name).suffix.lower()
     flags = []
+
     if not payload:
         flags.append("empty_payload")
+
     if extension not in allowed:
         flags.append("unsupported_file_type")
+    else:
+        expected_header = file_headers.get(extension)
+        if expected_header is None:
+            flags.append("missing_header_rule")
+        elif not payload.startswith(expected_header):
+            flags.append("invalid_file_header")
+
     accepted = not flags
     return WiffReceipt(
         accepted=accepted,
@@ -87,12 +105,7 @@ def caller_receipt(
     taste_receipt: TasteReceipt | None = None,
     stream_receipt: QuarantineReceipt | None = None,
 ) -> CallerReceipt:
-    """Build the canonical response for the original caller.
-
-    A WIFF failure is receipted without a B32KID. Later SPIT/SWALLOW responses
-    carry the SWIRL-issued identity. STREAM locations appear only after
-    successful SWALLOW persistence.
-    """
+    """Build the canonical response for the original caller."""
 
     if not wiff_receipt.accepted:
         return CallerReceipt(
