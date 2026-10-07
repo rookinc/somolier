@@ -1,0 +1,15 @@
+{
+  "schema": "somolier.dictionary.v0.1",
+  "title": "Somolier Canonical Dictionary",
+  "native_packet_backend": "b32k",
+  "flow": ["WIFF", "SWIRL", "TASTE", "DECIDER", "SPIT|SWALLOW"],
+  "terms": {
+    "WIFF": {"kind": "stage", "definition": "pre-quarantine wrapper inspection and file fingerprint"},
+    "SWIRL": {"kind": "stage", "definition": "quarantine sealing boundary"},
+    "TASTE": {"kind": "stage", "definition": "Somolier normalization and packetization pass"},
+    "DECIDER": {"kind": "port", "definition": "external admission authority; unregistered defaults to SPIT"},
+    "SPIT": {"kind": "disposition", "definition": "reject admission while preserving evidence and receipt"},
+    "SWALLOW": {"kind": "disposition", "definition": "admit only when every required Decider gate passes"},
+    "B32K": {"kind": "backend", "definition": "default packet backend shipped with Somolier"}
+  }
+}
