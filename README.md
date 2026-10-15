@@ -1,4 +1,4 @@
-# Somolier
+# Wombat
 
 Somolier is a deterministic, fail-closed file-ingestion and qualification service being rebuilt as a B32K-aligned reference implementation.
 
